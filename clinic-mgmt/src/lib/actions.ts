@@ -911,7 +911,7 @@ export async function createScheduleSlot(data: {
       const conflicts = await tx.scheduleSlot.findMany({
         where: {
           doctorId: data.doctorId,
-          status: { not: "blocked" },
+          status: { in: ["booked", "arrived"] },
           AND: [
             { startTime: { lt: end } },
             { endTime: { gt: start } },
@@ -986,7 +986,7 @@ export async function bookAppointmentSlot(data: {
       const conflicts = await prisma.scheduleSlot.findMany({
         where: {
           doctorId: data.doctorId,
-          status: { not: "blocked" },
+          status: { in: ["booked", "arrived"] },
           AND: [
             { startTime: { lt: end } },
             { endTime: { gt: start } },
