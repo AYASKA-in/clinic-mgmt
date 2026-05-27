@@ -4,7 +4,7 @@ import prisma from "@/lib/db"
 import { createAuditLog } from "@/lib/audit"
 import { hashPassword, requireAuth as _requireAuth, requireRole as _requireRole } from "@/lib/auth"
 import { withCache, clearCache } from "@/lib/cache"
-import { toDateIST, istNow, fromIST } from "@/lib/utils"
+import { toDateIST, istMidnightUTC } from "@/lib/utils"
 import { cache } from "react"
 
 const requireAuth = cache(_requireAuth)
@@ -24,9 +24,7 @@ function logAudit(params: {
 }
 
 function isPastDate(date: Date): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return date < today
+  return date.getTime() < istMidnightUTC().getTime()
 }
 
 export async function getUsers() {
@@ -391,12 +389,12 @@ export async function createTreatmentPlan(data: {
       return { success: false, error: "Selected user is not a doctor" }
     }
 
-    const startDate = data.startDate ? new Date(data.startDate) : new Date()
+    const startDate = data.startDate ? toDateIST(data.startDate) : new Date()
 
     if (isPastDate(startDate)) {
       return { success: false, error: "Start date cannot be in the past" }
     }
-    if (data.expectedEndDate && isPastDate(new Date(data.expectedEndDate))) {
+    if (data.expectedEndDate && isPastDate(toDateIST(data.expectedEndDate))) {
       return { success: false, error: "Expected end date cannot be in the past" }
     }
     if (data.stagesTotal < 1 || data.stagesTotal > 30) {
@@ -729,7 +727,7 @@ export async function createVisit(data: {
         stageNo: data.stageNo,
         sittingNo: data.sittingNo,
         notes: data.notes ?? null,
-        nextVisitDate: data.nextVisitDate ? new Date(data.nextVisitDate) : null,
+        nextVisitDate: data.nextVisitDate ? toDateIST(data.nextVisitDate) : null,
         visitStatus: data.visitStatus ?? "completed",
         receiptNumber,
       },
@@ -1144,7 +1142,7 @@ export async function createReminder(data: {
 }) {
   try {
     const session = await requireAuth()
-    const sendAt = new Date(data.sendAt)
+    const sendAt = toDateIST(data.sendAt)
     if (isPastDate(sendAt)) throw new Error("Reminder send time cannot be in the past")
     const reminder = await prisma.reminder.create({
       data: {
@@ -1304,9 +1302,7 @@ export async function setClinicSetting(key: string, value: string) {
 export async function getTodaySchedule() {
   await requireAuth()
   return withCache("today-schedule", 30_000, async () => {
-    const nowIst = istNow()
-    const startIst = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate())
-    const start = fromIST(startIst)
+    const start = istMidnightUTC()
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
 
     const visits = await prisma.visit.findMany({
@@ -1422,9 +1418,7 @@ export async function updatePlanSession(
 export async function getDashboardStats() {
   await requireAuth()
   return withCache("dashboard-stats", 30_000, async () => {
-    const nowIst = istNow()
-    const startIst = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate())
-    const start = fromIST(startIst)
+    const start = istMidnightUTC()
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
 
     const rows = await prisma.$queryRawUnsafe<Array<Record<string, bigint>>>(

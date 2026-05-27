@@ -46,25 +46,33 @@ export function endOfDay(date: Date = new Date()): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
 }
 
-const IST_OFFSET = 5.5 * 60 * 60 * 1000
-
-export function toIST(date: Date): Date {
-  return new Date(date.getTime() + IST_OFFSET)
-}
-
-export function fromIST(date: Date): Date {
-  return new Date(date.getTime() - IST_OFFSET)
-}
-
-export function istNow(): Date {
-  return toIST(new Date())
-}
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
 
 export function toDateIST(value: string): Date {
   if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
     return new Date(value)
   }
   return new Date(value + "+05:30")
+}
+
+export function istMidnightUTC(): Date {
+  const nowIst = Date.now() + IST_OFFSET_MS
+  const midnightIst = Math.floor(nowIst / 86400000) * 86400000
+  return new Date(midnightIst - IST_OFFSET_MS)
+}
+
+export function istNowUTC(): Date {
+  return new Date(Date.now() + IST_OFFSET_MS)
+}
+
+/** Get IST date components from a Date object */
+export function istComponents(date: Date): { year: number; month: number; day: number } {
+  const d = new Date(date.getTime() + IST_OFFSET_MS)
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth(),
+    day: d.getUTCDate(),
+  }
 }
 
 export function generateReceiptNumber(): string {
