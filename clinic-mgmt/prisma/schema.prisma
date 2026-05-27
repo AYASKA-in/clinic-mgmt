@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Patient {
+  id               String           @id @default(cuid())
+  name             String
+  phone            String
+  email            String?
+  address          String
+  age              Int?
+  dateOfBirth      DateTime?
+  gender           String?
+  reportedProblem  String
+  referralSource   String?
+  emergencyContact String?
+  notes            String?
+  consentFlags     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  treatmentPlans TreatmentPlan[]
+  visits         Visit[]
+  reminders      Reminder[]
+  scheduleSlots  ScheduleSlot[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  role         String     @default("receptionist")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  treatmentPlans TreatmentPlan[]  @relation("DoctorPlans")
+  scheduleSlots  ScheduleSlot[]
+  auditLogs      AuditLog[]
+
+  @@index([name])
+}
+
+model TreatmentPlan {
+  id                   String       @id @default(cuid())
+  patientId            String
+  doctorId             String
+  condition            String
+  stagesTotal          Int          @default(1)
+  sittingsTotal        Int          @default(6)
+  currentStage         Int          @default(1)
+  currentSittingNumber Int          @default(0)
+  intervalDays         Int          @default(7)
+  plannedVisitDates    String?
+  startDate            DateTime?
+  expectedEndDate      DateTime?
+  status               String       @default("active")
+  specialNotes         String?
+  version              Int          @default(1)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  patient  Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor   User          @relation("DoctorPlans", fields: [doctorId], references: [id])
+  visits   Visit[]
+  versions PlanVersion[]
+  sessions PlanSession[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+}
+
+model PlanSession {
+  id             String    @id @default(cuid())
+  planId         String
+  sessionNumber  Int
+  stageNo        Int       @default(1)
+  sittingNo      Int       @default(1)
+  scheduledDate  DateTime
+  status         String    @default("scheduled")
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  plan TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([planId, sessionNumber])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+model PlanVersion {
+  id                String     @id @default(cuid())
+  planId            String
+  version           Int
+  stagesTotal       Int
+  sittingsTotal     Int
+  intervalDays      Int
+  condition         String
+  specialNotes      String?
+  plannedVisitDates String?
+  expectedEndDate   DateTime?
+  status            String
+  changeNotes       String?
+  createdAt         DateTime   @default(now())
+
+  plan TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model Visit {
+  id             String       @id @default(cuid())
+  patientId      String
+  planId         String?
+  scheduleSlotId String?      @unique
+  dateTime       DateTime
+  stageNo        Int          @default(1)
+  sittingNo      Int          @default(1)
+  notes          String?
+  nextVisitDate  DateTime?
+  visitStatus    String       @default("completed")
+  receiptNumber  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  patient      Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  plan         TreatmentPlan? @relation(fields: [planId], references: [id])
+  scheduleSlot ScheduleSlot?  @relation(fields: [scheduleSlotId], references: [id])
+
+  @@index([patientId])
+  @@index([planId])
+  @@index([dateTime])
+  @@index([visitStatus])
+}
+
+model ScheduleSlot {
+  id             String    @id @default(cuid())
+  doctorId       String
+  startTime      DateTime
+  endTime        DateTime
+  slotType       String    @default("available")
+  status         String    @default("free")
+  overrideReason String?
+  patientId      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  doctor  User      @relation(fields: [doctorId], references: [id])
+  patient Patient?  @relation(fields: [patientId], references: [id])
+  visit   Visit?
+
+  @@index([doctorId, startTime])
+  @@index([startTime])
+  @@index([status])
+  @@index([doctorId])
+  @@index([patientId])
+}
+
+model Reminder {
+  id               String   @id @default(cuid())
+  patientId        String
+  visitId          String?
+  channel          String   @default("email")
+  template         String
+  sendAt           DateTime
+  status           String   @default("pending")
+  deliveryAttempts Int      @default(0)
+  lastError        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([sendAt, status])
+  @@index([patientId])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  entityType  String
+  entityId    String?
+  action      String
+  before      String?
+  after       String?
+  ipOrDevice  String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@index([entityType, createdAt])
+  @@index([actorId])
+}
+
+model ClinicSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
