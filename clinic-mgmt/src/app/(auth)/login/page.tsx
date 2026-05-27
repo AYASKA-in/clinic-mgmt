@@ -33,7 +33,8 @@ function LoginForm() {
 
       toast.success("Signed in successfully")
       const redirect = sp.get("redirect") || "/dashboard"
-      router.push(redirect)
+      const safe = redirect.startsWith("/") && !redirect.startsWith("//") && redirect !== "/" ? redirect : "/dashboard"
+      window.location.href = safe
     } catch (err: any) {
       setError(err.message || "Invalid credentials")
     } finally {
