@@ -983,49 +983,47 @@ export async function bookAppointmentSlot(data: {
     const start = new Date(data.startTime)
     const end = new Date(data.endTime)
 
-    const slot = await prisma.$transaction(async (tx) => {
-      if (!data.overrideConflict) {
-        const conflicts = await tx.scheduleSlot.findMany({
-          where: {
-            doctorId: data.doctorId,
-            status: { not: "blocked" },
-            AND: [
-              { startTime: { lt: end } },
-              { endTime: { gt: start } },
-            ],
-          },
-          take: 1,
-        })
-        if (conflicts.length > 0) {
-          throw new Error("Slot conflict detected. Enable override to book anyway.")
-        }
-
-        const patientConflict = await tx.scheduleSlot.findFirst({
-          where: {
-            patientId: data.patientId,
-            status: "booked",
-            AND: [
-              { startTime: { lt: end } },
-              { endTime: { gt: start } },
-            ],
-          },
-        })
-        if (patientConflict) {
-          throw new Error("Patient already has an appointment during this time")
-        }
+    if (!data.overrideConflict) {
+      const conflicts = await prisma.scheduleSlot.findMany({
+        where: {
+          doctorId: data.doctorId,
+          status: { not: "blocked" },
+          AND: [
+            { startTime: { lt: end } },
+            { endTime: { gt: start } },
+          ],
+        },
+        take: 1,
+      })
+      if (conflicts.length > 0) {
+        return { error: "Slot conflict detected. Enable override to book anyway." }
       }
 
-      return tx.scheduleSlot.create({
-        data: {
-          doctorId: data.doctorId,
-          startTime: start,
-          endTime: end,
-          slotType: "available",
-          status: "booked",
+      const patientConflict = await prisma.scheduleSlot.findFirst({
+        where: {
           patientId: data.patientId,
-          overrideReason: data.overrideConflict ? data.reason || "override" : null,
+          status: "booked",
+          AND: [
+            { startTime: { lt: end } },
+            { endTime: { gt: start } },
+          ],
         },
       })
+      if (patientConflict) {
+        return { error: "Patient already has an appointment during this time" }
+      }
+    }
+
+    const slot = await prisma.scheduleSlot.create({
+      data: {
+        doctorId: data.doctorId,
+        startTime: start,
+        endTime: end,
+        slotType: "available",
+        status: "booked",
+        patientId: data.patientId,
+        overrideReason: data.overrideConflict ? data.reason || "override" : null,
+      },
     })
 
     const patient = await prisma.patient.findUnique({ where: { id: data.patientId } })
@@ -1086,7 +1084,7 @@ export async function bookAppointmentSlot(data: {
 
     return slot
   } catch (e: any) {
-    throw new Error(e.message || "Failed to book appointment")
+    return { error: e.message || "Failed to book appointment" }
   }
 }
 

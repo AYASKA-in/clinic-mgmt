@@ -469,7 +469,7 @@ export default function CalendarPage() {
         toast.error("No doctors available. Please add a doctor first.")
         return
       }
-      const slot = await bookAppointmentSlot({
+      const result = await bookAppointmentSlot({
         doctorId,
         startTime: startISO,
         endTime: endISO,
@@ -478,9 +478,14 @@ export default function CalendarPage() {
         overrideConflict: newApptOverride,
       })
 
+      if ("error" in result) {
+        toast.error(result.error)
+        return
+      }
+
       const doctor = doctorsList.find((d) => d.id === doctorId)
       const newAppt: Appointment = {
-        id: slot.id,
+        id: result.id,
         patientName: newApptPatientName,
         patientId: newApptPatientId,
         time: newApptTime,
