@@ -61,19 +61,7 @@ export function istMidnightUTC(): Date {
   return new Date(midnightIst - IST_OFFSET_MS)
 }
 
-export function istNowUTC(): Date {
-  return new Date(Date.now() + IST_OFFSET_MS)
-}
 
-/** Get IST date components from a Date object */
-export function istComponents(date: Date): { year: number; month: number; day: number } {
-  const d = new Date(date.getTime() + IST_OFFSET_MS)
-  return {
-    year: d.getUTCFullYear(),
-    month: d.getUTCMonth(),
-    day: d.getUTCDate(),
-  }
-}
 
 export function generateReceiptNumber(): string {
   const date = new Date()
