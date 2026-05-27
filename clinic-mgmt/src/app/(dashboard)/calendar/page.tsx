@@ -460,8 +460,9 @@ export default function CalendarPage() {
     const endH = Math.floor(endMinutes / 60)
     const endM = endMinutes % 60
     const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`
-    const startISO = `${newApptDate}T${newApptTime}:00`
-    const endISO = `${newApptDate}T${endTime}:00`
+    const tz = "+05:30"
+    const startISO = `${newApptDate}T${newApptTime}:00${tz}`
+    const endISO = `${newApptDate}T${endTime}:00${tz}`
 
     try {
       const doctorId = newApptDoctorId || (doctorsList.length > 0 ? doctorsList[0].id : "")

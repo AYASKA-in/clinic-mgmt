@@ -46,6 +46,27 @@ export function endOfDay(date: Date = new Date()): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
 }
 
+const IST_OFFSET = 5.5 * 60 * 60 * 1000
+
+export function toIST(date: Date): Date {
+  return new Date(date.getTime() + IST_OFFSET)
+}
+
+export function fromIST(date: Date): Date {
+  return new Date(date.getTime() - IST_OFFSET)
+}
+
+export function istNow(): Date {
+  return toIST(new Date())
+}
+
+export function toDateIST(value: string): Date {
+  if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
+    return new Date(value)
+  }
+  return new Date(value + "+05:30")
+}
+
 export function generateReceiptNumber(): string {
   const date = new Date()
   const y = date.getFullYear().toString().slice(2)

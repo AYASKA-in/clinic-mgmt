@@ -4,6 +4,7 @@ import prisma from "@/lib/db"
 import { createAuditLog } from "@/lib/audit"
 import { hashPassword, requireAuth as _requireAuth, requireRole as _requireRole } from "@/lib/auth"
 import { withCache, clearCache } from "@/lib/cache"
+import { toDateIST, istNow, fromIST } from "@/lib/utils"
 import { cache } from "react"
 
 const requireAuth = cache(_requireAuth)
@@ -718,7 +719,7 @@ export async function createVisit(data: {
 }) {
   try {
     const session = await requireAuth()
-    const visitDate = new Date(data.dateTime)
+    const visitDate = toDateIST(data.dateTime)
     const receiptNumber = `ZF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
     const visit = await prisma.visit.create({
       data: {
@@ -904,8 +905,8 @@ export async function createScheduleSlot(data: {
   patientId?: string | null
 }) {
   const session = await requireAuth()
-  const start = new Date(data.startTime)
-  const end = new Date(data.endTime)
+  const start = toDateIST(data.startTime)
+  const end = toDateIST(data.endTime)
 
   const slot = await prisma.$transaction(async (tx) => {
     if (data.status === "booked" && !data.overrideReason) {
@@ -980,8 +981,8 @@ export async function bookAppointmentSlot(data: {
 }) {
   try {
     const session = await requireAuth()
-    const start = new Date(data.startTime)
-    const end = new Date(data.endTime)
+    const start = toDateIST(data.startTime)
+    const end = toDateIST(data.endTime)
 
     if (!data.overrideConflict) {
       const conflicts = await prisma.scheduleSlot.findMany({
@@ -1303,8 +1304,9 @@ export async function setClinicSetting(key: string, value: string) {
 export async function getTodaySchedule() {
   await requireAuth()
   return withCache("today-schedule", 30_000, async () => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const nowIst = istNow()
+    const startIst = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate())
+    const start = fromIST(startIst)
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
 
     const visits = await prisma.visit.findMany({
@@ -1420,8 +1422,9 @@ export async function updatePlanSession(
 export async function getDashboardStats() {
   await requireAuth()
   return withCache("dashboard-stats", 30_000, async () => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const nowIst = istNow()
+    const startIst = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate())
+    const start = fromIST(startIst)
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
 
     const rows = await prisma.$queryRawUnsafe<Array<Record<string, bigint>>>(
