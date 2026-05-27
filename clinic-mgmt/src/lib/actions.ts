@@ -759,9 +759,9 @@ export async function arrivePatient(slotId: string) {
       where: { id: slotId },
       include: { patient: true, doctor: true, visit: true },
     })
-    if (!slot) throw new Error("Schedule slot not found")
-    if (slot.status !== "booked") throw new Error("Slot is not booked")
-    if (slot.visit) throw new Error("Patient already arrived for this slot")
+    if (!slot) return { error: "Schedule slot not found" }
+    if (slot.status !== "booked") return { error: "Slot is not booked" }
+    if (slot.visit) return { error: "Patient already arrived for this slot" }
 
     const plan = await prisma.treatmentPlan.findFirst({
       where: { patientId: slot.patientId!, status: "active" },
@@ -798,7 +798,7 @@ export async function arrivePatient(slotId: string) {
 
     return visit
   } catch (e: any) {
-    throw new Error(e.message || "Failed to mark patient as arrived")
+    return { error: e.message || "Failed to mark patient as arrived" }
   }
 }
 
@@ -809,8 +809,8 @@ export async function completeVisit(visitId: string, notes?: string | null) {
       where: { id: visitId },
       include: { scheduleSlot: true, plan: { include: { sessions: true } } },
     })
-    if (!visit) throw new Error("Visit not found")
-    if (visit.visitStatus === "completed") throw new Error("Visit is already completed")
+    if (!visit) return { error: "Visit not found" }
+    if (visit.visitStatus === "completed") return { error: "Visit is already completed" }
 
     const updated = await prisma.visit.update({
       where: { id: visitId },
@@ -863,7 +863,7 @@ export async function completeVisit(visitId: string, notes?: string | null) {
 
     return updated
   } catch (e: any) {
-    throw new Error(e.message || "Failed to complete visit")
+    return { error: e.message || "Failed to complete visit" }
   }
 }
 

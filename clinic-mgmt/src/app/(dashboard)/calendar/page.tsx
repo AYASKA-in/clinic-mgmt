@@ -532,27 +532,27 @@ export default function CalendarPage() {
   }, [])
 
   const handleArrivePatient = useCallback(async (slotId: string) => {
-    try {
-      await arrivePatient(slotId)
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === slotId ? { ...a, status: "arrived" as const, visitStatus: "arrived" } : a))
-      )
-      toast.success("Patient marked as arrived")
-    } catch (e: any) {
-      toast.error(e.message || "Failed to mark patient as arrived")
+    const result = await arrivePatient(slotId)
+    if ("error" in result) {
+      toast.error(result.error)
+      return
     }
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === slotId ? { ...a, status: "arrived" as const, visitStatus: "arrived" } : a))
+    )
+    toast.success("Patient marked as arrived")
   }, [])
 
   const handleCompleteVisit = useCallback(async (visitId: string, slotId: string) => {
-    try {
-      await completeVisit(visitId)
-      setAppointments((prev) =>
-        prev.map((a) => (a.id === slotId ? { ...a, status: "completed" as const, visitStatus: "completed" } : a))
-      )
-      toast.success("Visit completed — plan progress updated")
-    } catch (e: any) {
-      toast.error(e.message || "Failed to complete visit")
+    const result = await completeVisit(visitId)
+    if ("error" in result) {
+      toast.error(result.error)
+      return
     }
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === slotId ? { ...a, status: "completed" as const, visitStatus: "completed" } : a))
+    )
+    toast.success("Visit completed — plan progress updated")
   }, [])
 
   const filteredAppointments = useMemo(() => {
