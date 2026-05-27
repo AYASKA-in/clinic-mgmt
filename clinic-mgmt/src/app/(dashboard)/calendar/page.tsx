@@ -48,7 +48,7 @@ import {
   CalendarRange,
   List,
 } from "lucide-react"
-import { cn, formatDate, formatTime, getInitials } from "@/lib/utils"
+import { cn, formatDate, formatDateISO, formatTime, getInitials } from "@/lib/utils"
 import { toast } from "sonner"
 import { searchPatients, getScheduleSlots, bookAppointmentSlot, getDoctors, arrivePatient, completeVisit } from "@/lib/actions"
 
@@ -367,7 +367,7 @@ export default function CalendarPage() {
             patientId: s.patientId || "",
             time: formatTime(s.startTime),
             endTime: formatTime(s.endTime),
-            date: formatDate(s.startTime),
+            date: formatDateISO(s.startTime),
             duration: Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000),
             status: s.visit?.visitStatus === "arrived" ? "arrived" as const
               : s.visit?.visitStatus === "completed" ? "completed" as const
@@ -394,7 +394,7 @@ export default function CalendarPage() {
 
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate])
   const monthGrid = useMemo(() => getMonthGrid(currentDate), [currentDate])
-  const todayStr = formatDate(new Date())
+  const todayStr = formatDateISO(new Date())
 
   const navigate = useCallback((direction: "prev" | "next") => {
     setCurrentDate((prev) => {
@@ -567,20 +567,16 @@ export default function CalendarPage() {
     (dateStr: string) => {
       return filteredAppointments.filter((a) => {
         if (a.date) return a.date === dateStr
-        if (weekDates.length > 0) {
-          const dayStr = formatDate(weekDates[0])
-          return a.date === "" && a.time.startsWith(String(parseInt(dayStr.split(" ")[1])))
-        }
         return false
       })
     },
-    [filteredAppointments, weekDates]
+    [filteredAppointments]
   )
 
   const getDayDateStr = useCallback((dayIndex: number): string => {
-    if (view === "week") return formatDate(weekDates[dayIndex])
-    if (view === "day") return formatDate(currentDate)
-    return formatDate(new Date())
+    if (view === "week") return formatDateISO(weekDates[dayIndex])
+    if (view === "day") return formatDateISO(currentDate)
+    return formatDateISO(new Date())
   }, [view, weekDates, currentDate])
 
   const getAppointmentsForDayByIndex = useCallback(
@@ -596,7 +592,7 @@ export default function CalendarPage() {
 
   const hasAppointmentsOnDate = useCallback(
     (date: Date): boolean => {
-      const ds = formatDate(date)
+      const ds = formatDateISO(date)
       return appointments.some((a) => a.date === ds)
     },
     [appointments]
@@ -736,7 +732,7 @@ export default function CalendarPage() {
                         style={{ height: HOUR_HEIGHT }}
                         onClick={() => {
                           const timeStr = `${String(START_HOUR + i).padStart(2, "0")}:00`
-                          handleSlotClick(formatDate(day), timeStr)
+                          handleSlotClick(formatDateISO(day), timeStr)
                         }}
                       />
                     ))}
@@ -817,11 +813,11 @@ export default function CalendarPage() {
                       style={{ height: HOUR_HEIGHT }}
                       onClick={() => {
                         const timeStr = `${String(START_HOUR + i).padStart(2, "0")}:00`
-                        handleSlotClick(formatDate(currentDate), timeStr)
-                      }}
-                    />
-                  ))}
-                  {showCurrentTime && (
+                        handleSlotClick(formatDateISO(currentDate), timeStr)
+                        }}
+                      />
+                    ))}
+                    {showCurrentTime && (
                     <div
                       className="absolute left-0 right-0 z-10 pointer-events-none"
                       style={{ top: currentTimePos }}
@@ -864,7 +860,7 @@ export default function CalendarPage() {
               </div>
               <div className="grid grid-cols-7 border-l border-t border-border">
                 {monthGrid.flat().map((date, i) => {
-                  const dayAppts = date ? getAppointmentsForDay(formatDate(date)) : []
+                  const dayAppts = date ? getAppointmentsForDay(formatDateISO(date)) : []
                   return (
                     <div
                       key={i}

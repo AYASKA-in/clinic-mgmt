@@ -11,6 +11,12 @@ export function formatDate(date: Date | string | null | undefined): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
+export function formatDateISO(date: Date | string | null | undefined): string {
+  if (!date) return ""
+  const d = new Date(date)
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")
+}
+
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return "—"
   const d = new Date(date)
