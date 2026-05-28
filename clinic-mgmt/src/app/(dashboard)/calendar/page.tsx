@@ -806,7 +806,11 @@ export default function CalendarPage() {
               <Label className="text-xs text-muted-foreground">Practitioner</Label>
                 <Select value={practitionerFilter} onValueChange={(v) => setPractitionerFilter(v ?? "all")}>
                   <SelectTrigger className="h-8 mt-1">
-                    <SelectValue placeholder="All practitioners" />
+                    <SelectValue>
+                      {practitionerFilter === "all" || !practitionerFilter
+                        ? "All practitioners"
+                        : doctorsList.find((d) => d.id === practitionerFilter)?.name || practitionerFilter}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All practitioners</SelectItem>
