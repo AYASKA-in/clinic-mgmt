@@ -1553,7 +1553,7 @@ export async function getDashboardStats() {
         (SELECT COUNT(*) FROM "TreatmentPlan" WHERE status = 'active') AS "activePlans",
         (SELECT COUNT(*) FROM "Patient" WHERE "createdAt" >= $1::timestamp) AS "newPatients",
         (SELECT COUNT(*) FROM "Patient") AS "totalPatients",
-        (SELECT COUNT(*) FROM "Patient" p WHERE EXISTS (SELECT 1 FROM "Visit" v WHERE v."patientId" = p.id) AND EXISTS (SELECT 1 FROM "TreatmentPlan" tp WHERE tp."patientId" = p.id AND tp.status = 'active')) AS "overdueCount"`,
+        (SELECT COUNT(*) FROM "Patient" p WHERE EXISTS (SELECT 1 FROM "TreatmentPlan" tp2 WHERE tp2."patientId" = p.id AND tp2.status = 'active') AND EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(v3."dateTime") FROM "Visit" v3 WHERE v3."patientId" = p.id))) / 86400 > (SELECT tp3."intervalDays" FROM "TreatmentPlan" tp3 WHERE tp3."patientId" = p.id AND tp3.status = 'active' LIMIT 1)) AS "overdueCount"`,
       start,
       end
     )
