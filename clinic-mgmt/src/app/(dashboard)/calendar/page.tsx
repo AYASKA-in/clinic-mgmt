@@ -174,12 +174,12 @@ export default function CalendarPage() {
   const [view, setView] = useState<"day" | "week" | "month">("week")
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loadingSlots, setLoadingSlots] = useState(true)
-  const [practitionerFilter, setPractitionerFilter] = useState<string>("")
+  const [practitionerFilter, setPractitionerFilter] = useState<string>("all")
   const [roomFilter, setRoomFilter] = useState<string>("all")
   const [newApptOpen, setNewApptOpen] = useState(false)
   const [newApptDate, setNewApptDate] = useState("")
   const [newApptTime, setNewApptTime] = useState("09:00")
-  const [newApptDuration, setNewApptDuration] = useState("45")
+  const [newApptDuration, setNewApptDuration] = useState("60")
   const [newApptReason, setNewApptReason] = useState("")
   const [newApptPatientSearch, setNewApptPatientSearch] = useState("")
   const [newApptPatientId, setNewApptPatientId] = useState("")
@@ -410,7 +410,7 @@ export default function CalendarPage() {
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((a) => {
-      if (practitionerFilter && a.practitionerId !== practitionerFilter) return false
+      if (practitionerFilter !== "all" && a.practitionerId !== practitionerFilter) return false
       if (roomFilter !== "all" && a.room !== roomFilter) return false
       return true
     })
@@ -804,18 +804,19 @@ export default function CalendarPage() {
           <CardContent className="p-3 space-y-3">
             <div>
               <Label className="text-xs text-muted-foreground">Practitioner</Label>
-               <Select value={practitionerFilter} onValueChange={(v) => v && setPractitionerFilter(v)}>
-                <SelectTrigger className="h-8 mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {doctorsList.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select value={practitionerFilter} onValueChange={(v) => setPractitionerFilter(v ?? "all")}>
+                  <SelectTrigger className="h-8 mt-1">
+                    <SelectValue placeholder="All practitioners" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All practitioners</SelectItem>
+                    {doctorsList.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Room</Label>
@@ -1005,9 +1006,9 @@ function AppointmentBlock({
   onArrive?: (slotId: string) => void
   onComplete?: (visitId: string, slotId: string) => void
 }) {
-  const cardH = Math.max(height, 24)
-  const isShort = cardH < 42
-  const isMedium = cardH >= 42 && cardH < 60
+  const cardH = Math.max(height, 28)
+  const isShort = cardH < 48
+  const isMedium = cardH >= 48 && cardH < 66
   return (
     <div
       className={cn(
@@ -1022,28 +1023,28 @@ function AppointmentBlock({
       )} />
       <div className={cn(
         "flex flex-col h-full min-w-0",
-        isShort ? "pl-[10px] pr-2 py-1 gap-0" : isMedium ? "pl-[10px] pr-2.5 py-1.5 gap-[1px]" : "pl-[10px] pr-3 py-2 gap-[2px]"
+        isShort ? "pl-[10px] pr-2 py-1 gap-0" : isMedium ? "pl-[10px] pr-2.5 py-[7px] gap-[1px]" : "pl-[10px] pr-3 py-[9px] gap-[2px]"
       )}>
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="shrink-0 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 tabular-nums leading-tight">
+          <span className="shrink-0 text-[11px] font-medium text-zinc-400 dark:text-zinc-500 tabular-nums leading-tight">
             {appointment.time}
           </span>
           <span className={cn(
             "truncate font-semibold leading-tight text-zinc-800 dark:text-zinc-100",
             appointment.status === "completed" && "line-through decoration-zinc-300 dark:decoration-zinc-600",
             appointment.status === "overdue" && "text-red-700 dark:text-red-300",
-            isShort ? "text-[11px]" : "text-xs"
+            isShort ? "text-xs" : "text-[13px]"
           )}>
             {appointment.patientName}
           </span>
           {appointment.status === "completed" && (
-            <svg className="size-3 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="size-3.5 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           )}
         </div>
         {!isShort && (
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate leading-tight">
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate leading-tight">
             {appointment.practitioner || appointment.reason || ""}
           </span>
         )}
@@ -1053,18 +1054,18 @@ function AppointmentBlock({
         )}>
           {appointment.status === "confirmed" && appointment.visitStatus !== "arrived" && appointment.visitStatus !== "completed" && onArrive && (
             <button
-              className="bg-emerald-500 text-white rounded-[4px] hover:bg-emerald-600 active:bg-emerald-700 leading-tight font-medium text-[10px] px-2 py-[3px]"
+              className="bg-emerald-500 text-white rounded-[4px] hover:bg-emerald-600 active:bg-emerald-700 leading-tight font-medium text-[11px] px-2.5 py-[3px]"
               onClick={(e) => { e.stopPropagation(); onArrive(appointment.id) }}
             >Arrived</button>
           )}
           {(appointment.status === "arrived" || appointment.visitStatus === "arrived") && appointment.visitId && onComplete && (
             <button
-              className="bg-blue-500 text-white rounded-[4px] hover:bg-blue-600 active:bg-blue-700 leading-tight font-medium text-[10px] px-2 py-[3px]"
+              className="bg-blue-500 text-white rounded-[4px] hover:bg-blue-600 active:bg-blue-700 leading-tight font-medium text-[11px] px-2.5 py-[3px]"
               onClick={(e) => { e.stopPropagation(); onComplete(appointment.visitId!, appointment.id) }}
             >Complete</button>
           )}
           {appointment.status === "completed" && (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] leading-tight">Done</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] leading-tight">Done</span>
           )}
         </div>
       </div>
