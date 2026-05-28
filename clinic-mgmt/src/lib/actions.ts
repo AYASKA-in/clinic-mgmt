@@ -713,15 +713,27 @@ export async function getVisitById(id: string) {
   })
   if (!visit) return null
 
-  if (!visit.plan && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")) {
-    const planId = visit.scheduleSlot.overrideReason.split(":")[1]
-    const plan = await prisma.treatmentPlan.findUnique({
-      where: { id: planId },
-      include: { doctor: { select: { name: true } } },
-    })
-    if (plan) {
-      (visit as any).plan = plan
-      await prisma.visit.update({ where: { id }, data: { planId } })
+  if (!visit.plan) {
+    let planId: string | null = null
+    if (visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")) {
+      planId = visit.scheduleSlot.overrideReason.split(":")[1]
+    } else {
+      const fallback = await prisma.treatmentPlan.findFirst({
+        where: { patientId: visit.patientId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      })
+      if (fallback) planId = fallback.id
+    }
+    if (planId) {
+      const plan = await prisma.treatmentPlan.findUnique({
+        where: { id: planId },
+        include: { doctor: { select: { name: true } } },
+      })
+      if (plan) {
+        (visit as any).plan = plan
+        await prisma.visit.update({ where: { id }, data: { planId } })
+      }
     }
   }
   return visit
