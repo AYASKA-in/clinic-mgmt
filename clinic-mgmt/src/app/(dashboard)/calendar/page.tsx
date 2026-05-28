@@ -77,22 +77,13 @@ const START_HOUR = 8
 const END_HOUR = 18
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-emerald-50 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700",
-  arrived: "bg-sky-50 border-sky-300 dark:bg-sky-950/40 dark:border-sky-700",
-  overdue: "bg-red-50 border-red-300 dark:bg-red-950/40 dark:border-red-700",
-  blocked: "bg-zinc-100 border-zinc-300 dark:bg-zinc-800/40 dark:border-zinc-600",
-  completed: "bg-zinc-50 border-zinc-200 dark:bg-zinc-900/40 dark:border-zinc-700",
-  cancelled: "bg-red-50/50 border-red-200 dark:bg-red-950/20 dark:border-red-800",
-}
-
-const STATUS_TEXT_COLORS: Record<string, string> = {
-  confirmed: "text-emerald-800 dark:text-emerald-200",
-  arrived: "text-sky-800 dark:text-sky-200",
-  overdue: "text-red-800 dark:text-red-200",
-  blocked: "text-zinc-500 dark:text-zinc-400",
-  completed: "text-zinc-400 dark:text-zinc-500",
-  cancelled: "text-red-400 dark:text-red-500",
+const ACCENT_COLORS: Record<string, string> = {
+  confirmed: "bg-emerald-500",
+  arrived: "bg-blue-500",
+  overdue: "bg-red-500",
+  blocked: "bg-zinc-400",
+  completed: "bg-emerald-400",
+  cancelled: "bg-red-300",
 }
 
 const rooms = ["Room 1", "Room 2", "Room 3", "Room 4"]
@@ -765,20 +756,27 @@ export default function CalendarPage() {
                             {dayAppts.slice(0, 3).map((a) => (
                               <div
                                 key={a.id}
-                                className={cn(
-                                  "text-[10px] truncate rounded px-1 py-0.5 leading-tight font-medium",
-                                  a.status === "confirmed" && "bg-primary/10 text-primary-fixed-foreground",
-                                  a.status === "arrived" && "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-                                  a.status === "overdue" && "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-                                  a.status === "completed" && "bg-muted text-muted-foreground",
-                                  a.status === "blocked" && "bg-surface-variant text-surface-variant-foreground"
-                                )}
+                                className="flex items-center gap-1 text-[10px] truncate leading-tight"
                               >
-                                {a.patientName}
+                                <div className={cn(
+                                  "size-1.5 rounded-full shrink-0",
+                                  a.status === "confirmed" && "bg-emerald-500",
+                                  a.status === "arrived" && "bg-blue-500",
+                                  a.status === "overdue" && "bg-red-500",
+                                  a.status === "completed" && "bg-emerald-400",
+                                  a.status === "blocked" && "bg-zinc-400",
+                                )} />
+                                <span className={cn(
+                                  "truncate font-medium",
+                                  a.status === "overdue" && "text-red-600 dark:text-red-400",
+                                  a.status !== "overdue" && "text-zinc-700 dark:text-zinc-300"
+                                )}>
+                                  {a.patientName}
+                                </span>
                               </div>
                             ))}
                             {dayAppts.length > 3 && (
-                              <span className="text-[10px] text-muted-foreground block pl-1">
+                              <span className="text-[10px] text-zinc-400 block pl-1">
                                 +{dayAppts.length - 3} more
                               </span>
                             )}
@@ -1007,90 +1005,72 @@ function AppointmentBlock({
   onArrive?: (slotId: string) => void
   onComplete?: (visitId: string, slotId: string) => void
 }) {
-  const cardH = Math.max(height, 22)
-  const isShort = cardH < 40
-  const isMedium = cardH >= 40 && cardH < 58
+  const cardH = Math.max(height, 24)
+  const isShort = cardH < 42
+  const isMedium = cardH >= 42 && cardH < 60
   return (
     <div
       className={cn(
-        "absolute left-0.5 right-0.5 rounded-md border overflow-hidden cursor-pointer hover:shadow-md hover:z-30 transition-all duration-150 group",
-        STATUS_COLORS[appointment.status] || "bg-muted border-muted"
+        "absolute left-0.5 right-0.5 rounded-[5px] bg-white dark:bg-zinc-900 cursor-pointer hover:shadow-md hover:z-30 transition-all duration-150 group",
+        "border border-zinc-200 dark:border-zinc-700/60"
       )}
       style={{ top, height: cardH }}
     >
       <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-[4px] rounded-l-[5px]",
+        ACCENT_COLORS[appointment.status] || "bg-zinc-300"
+      )} />
+      <div className={cn(
         "flex flex-col h-full min-w-0",
-        isShort ? "px-2 py-1 gap-0" : isMedium ? "px-2.5 py-1.5 gap-0.5" : "px-3 py-2 gap-1"
+        isShort ? "pl-[10px] pr-2 py-1 gap-0" : isMedium ? "pl-[10px] pr-2.5 py-1.5 gap-[1px]" : "pl-[10px] pr-3 py-2 gap-[2px]"
       )}>
-        <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="shrink-0 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 tabular-nums leading-tight">
+            {appointment.time}
+          </span>
           <span className={cn(
-            "truncate font-semibold leading-tight",
-            isShort ? "text-[11px]" : "text-xs",
-            STATUS_TEXT_COLORS[appointment.status]
+            "truncate font-semibold leading-tight text-zinc-800 dark:text-zinc-100",
+            appointment.status === "completed" && "line-through decoration-zinc-300 dark:decoration-zinc-600",
+            appointment.status === "overdue" && "text-red-700 dark:text-red-300",
+            isShort ? "text-[11px]" : "text-xs"
           )}>
             {appointment.patientName}
           </span>
-          <span className={cn(
-            "shrink-0 font-medium leading-tight",
-            isShort ? "text-[9px]" : "text-[10px]",
-            STATUS_TEXT_COLORS[appointment.status]
-          )}>
-            {appointment.time}
-          </span>
+          {appointment.status === "completed" && (
+            <svg className="size-3 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
         </div>
         {!isShort && (
-          <span className={cn(
-            "text-[10px] truncate leading-tight",
-            STATUS_TEXT_COLORS[appointment.status]
-          )}>
-            {appointment.practitioner}
-          </span>
-        )}
-        {!isMedium && !isShort && (
-          <span className={cn(
-            "text-[10px] truncate leading-tight",
-            STATUS_TEXT_COLORS[appointment.status]
-          )}>
-            {appointment.reason}
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate leading-tight">
+            {appointment.practitioner || appointment.reason || ""}
           </span>
         )}
         <div className={cn(
           "flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity",
-          isShort ? "mt-auto pt-0" : "mt-auto pt-0.5"
+          isShort ? "mt-auto" : "mt-auto pt-[1px]"
         )}>
           {appointment.status === "confirmed" && appointment.visitStatus !== "arrived" && appointment.visitStatus !== "completed" && onArrive && (
             <button
-              className={cn(
-                "bg-emerald-500 text-white rounded-md hover:bg-emerald-600 active:bg-emerald-700 leading-tight font-medium",
-                isShort ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2 py-0.5"
-              )}
+              className="bg-emerald-500 text-white rounded-[4px] hover:bg-emerald-600 active:bg-emerald-700 leading-tight font-medium text-[10px] px-2 py-[3px]"
               onClick={(e) => { e.stopPropagation(); onArrive(appointment.id) }}
-            >
-              Arrived
-            </button>
+            >Arrived</button>
           )}
           {(appointment.status === "arrived" || appointment.visitStatus === "arrived") && appointment.visitId && onComplete && (
             <button
-              className={cn(
-                "bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 leading-tight font-medium",
-                isShort ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2 py-0.5"
-              )}
+              className="bg-blue-500 text-white rounded-[4px] hover:bg-blue-600 active:bg-blue-700 leading-tight font-medium text-[10px] px-2 py-[3px]"
               onClick={(e) => { e.stopPropagation(); onComplete(appointment.visitId!, appointment.id) }}
-            >
-              Complete
-            </button>
+            >Complete</button>
           )}
           {appointment.status === "completed" && (
-            <span className={cn(
-              "text-emerald-600 font-semibold leading-tight",
-              isShort ? "text-[9px]" : "text-[10px]"
-            )}>Done</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] leading-tight">Done</span>
           )}
         </div>
       </div>
       {appointment.status === "overdue" && (
-        <div className="absolute top-0.5 right-0.5">
-          <AlertTriangle className="size-3 text-destructive" />
+        <div className="absolute top-1 right-1">
+          <AlertTriangle className="size-2.5 text-red-500" />
         </div>
       )}
     </div>
