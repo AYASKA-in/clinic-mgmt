@@ -308,7 +308,7 @@ export function PatientDetailClient({
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className="text-sm font-medium">
-                                {visit.plan
+                                {visit.plan && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")
                                   ? `Stage ${visit.stageNo}, Sitting ${visit.sittingNo}`
                                   : "Appointment Visit"}
                               </p>

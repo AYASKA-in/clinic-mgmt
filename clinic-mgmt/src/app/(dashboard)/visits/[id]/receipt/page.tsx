@@ -47,6 +47,7 @@ type VisitData = {
   } | null
   scheduleSlot?: {
     doctor: { name: string } | null
+    overrideReason: string | null
   } | null
 }
 
@@ -153,10 +154,11 @@ export default function ReceiptPage() {
     )
   }
 
-  const visitType = !visit.plan ? "Appointment" : visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
+  const isPlanSession = visit.plan && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")
+  const visitType = !isPlanSession ? "Appointment" : visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
   const practitioner = visit.plan?.doctor?.name || visit.scheduleSlot?.doctor?.name || "N/A"
-  const progress = visit.plan
-    ? `Stage ${visit.plan.currentStage}/${visit.plan.stagesTotal}, Sitting ${visit.plan.currentSittingNumber}/${visit.plan.sittingsTotal}`
+  const progress = isPlanSession
+    ? `Stage ${visit.plan!.currentStage}/${visit.plan!.stagesTotal}, Sitting ${visit.plan!.currentSittingNumber}/${visit.plan!.sittingsTotal}`
     : "No active treatment plan"
 
   return (
@@ -269,14 +271,14 @@ export default function ReceiptPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Stage / Sitting</span>
                     <span className="font-medium">
-                      {visit.plan ? `${visit.stageNo} / ${visit.sittingNo}` : "— / —"}
+                      {isPlanSession ? `${visit.stageNo} / ${visit.sittingNo}` : "— / —"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Phase</span>
                     <span className="font-medium">
-                      {visit.plan
-                        ? `Stage ${visit.stageNo} of ${visit.plan.stagesTotal}`
+                      {isPlanSession
+                        ? `Stage ${visit.stageNo} of ${visit.plan!.stagesTotal}`
                         : "N/A"}
                     </span>
                   </div>

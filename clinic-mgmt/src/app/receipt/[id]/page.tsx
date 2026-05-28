@@ -25,7 +25,7 @@ type VisitData = {
     currentStage: number; currentSittingNumber: number
     doctor: { name: string }
   } | null
-  scheduleSlot?: { doctor: { name: string } | null } | null
+  scheduleSlot?: { doctor: { name: string } | null; overrideReason: string | null } | null
 }
 
 export default function StandaloneReceiptPage() {
@@ -85,12 +85,13 @@ export default function StandaloneReceiptPage() {
     return <div className="p-6 text-center text-muted-foreground">Visit not found.</div>
   }
 
-  const visitType = !visit.plan ? "Appointment" : visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
-  const progress = visit.plan
-    ? `Stage ${visit.plan.currentStage}/${visit.plan.stagesTotal}, Sitting ${visit.plan.currentSittingNumber}/${visit.plan.sittingsTotal}`
+  const isPlanSession = visit.plan && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")
+  const visitType = !isPlanSession ? "Appointment" : visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
+  const progress = isPlanSession
+    ? `Stage ${visit.plan!.currentStage}/${visit.plan!.stagesTotal}, Sitting ${visit.plan!.currentSittingNumber}/${visit.plan!.sittingsTotal}`
     : "No active treatment plan"
-  const phase = visit.plan
-    ? `Stage ${visit.stageNo} of ${visit.plan.stagesTotal}`
+  const phase = isPlanSession
+    ? `Stage ${visit.stageNo} of ${visit.plan!.stagesTotal}`
     : "N/A"
 
   return (
@@ -153,7 +154,7 @@ export default function StandaloneReceiptPage() {
                   <div className="flex justify-between"><span className="text-gray-500">Progress</span><span className="font-medium">{progress}</span></div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between"><span className="text-gray-500">Stage / Sitting</span><span className="font-medium">{visit.plan ? `${visit.stageNo} / ${visit.sittingNo}` : "— / —"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Stage / Sitting</span><span className="font-medium">{isPlanSession ? `${visit.stageNo} / ${visit.sittingNo}` : "— / —"}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Phase</span><span className="font-medium">{visit.plan ? `Stage ${visit.stageNo} of ${visit.plan.stagesTotal}` : "N/A"}</span></div>
                 </div>
               </div>

@@ -171,7 +171,10 @@ export async function getPatientById(id: string) {
           orderBy: { createdAt: "desc" },
         },
         visits: {
-          include: { plan: { select: { condition: true } } },
+          include: {
+            plan: { select: { condition: true } },
+            scheduleSlot: { select: { overrideReason: true } },
+          },
           orderBy: { dateTime: "desc" },
           take: 50,
         },
@@ -815,14 +818,6 @@ export async function arrivePatient(slotId: string) {
         include: { sessions: { where: { status: "scheduled" }, orderBy: { sessionNumber: "asc" } } },
       })
     }
-    if (!plan) {
-      plan = await prisma.treatmentPlan.findFirst({
-        where: { patientId: slot.patientId! },
-        orderBy: { createdAt: "desc" },
-        include: { sessions: { where: { status: "scheduled" }, orderBy: { sessionNumber: "asc" } } },
-      })
-    }
-
     const receiptNumber = `ZF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
     const visit = await prisma.visit.create({

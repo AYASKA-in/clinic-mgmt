@@ -60,10 +60,14 @@ type VisitData = {
   receiptNumber: string | null
   patient: VisitPatient
   plan: VisitPlan | null
+  scheduleSlot?: { overrideReason: string | null } | null
 }
 
+const isPlanSession = (v: VisitData) =>
+  v.plan && v.scheduleSlot?.overrideReason?.startsWith("plan-session:")
+
 const visitTypeLabel = (visit: VisitData): string => {
-  if (!visit.plan) return "Appointment Visit"
+  if (!isPlanSession(visit)) return "Appointment Visit"
   if (visit.sittingNo === 1 && visit.stageNo === 1) return "Initial Visit"
   return "Follow-up Visit"
 }
@@ -160,20 +164,20 @@ export function VisitDetailClient({ visit }: { visit: VisitData }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {visit.plan ? (
+            {isPlanSession(visit) ? (
               <>
                 <Link
-                  href={`/plans/${visit.plan.id}`}
+                  href={`/plans/${visit.plan!.id}`}
                   className="font-semibold text-primary hover:underline"
                 >
-                  {visit.plan.condition}
+                  {visit.plan!.condition}
                 </Link>
                 <p className="text-muted-foreground">
-                  Stage {visit.plan.currentStage}/{visit.plan.stagesTotal} &middot; Sitting{" "}
-                  {visit.plan.currentSittingNumber}/{visit.plan.sittingsTotal}
+                  Stage {visit.plan!.currentStage}/{visit.plan!.stagesTotal} &middot; Sitting{" "}
+                  {visit.plan!.currentSittingNumber}/{visit.plan!.sittingsTotal}
                 </p>
                 <p className="text-muted-foreground">
-                  Practitioner: {visit.plan.doctor.name}
+                  Practitioner: {visit.plan!.doctor.name}
                 </p>
               </>
             ) : (
@@ -199,13 +203,13 @@ export function VisitDetailClient({ visit }: { visit: VisitData }) {
               </div>
               <div>
                 <span className="text-muted-foreground">Stage</span>
-                <p className="font-medium">{visit.plan ? visit.stageNo : "—"}</p>
+                <p className="font-medium">{isPlanSession(visit) ? visit.stageNo : "—"}</p>
               </div>
             </div>
             <div className="space-y-3">
               <div>
                 <span className="text-muted-foreground">Sitting</span>
-                <p className="font-medium">{visit.plan ? visit.sittingNo : "—"}</p>
+                <p className="font-medium">{isPlanSession(visit) ? visit.sittingNo : "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Receipt #</span>
