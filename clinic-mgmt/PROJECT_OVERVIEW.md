@@ -1,7 +1,7 @@
 # ZenFlow Clinic — Project Overview
 
 **Version:** 0.3.0  
-**Last updated:** May 28, 2026 (arrival workflow fix + system audit)  
+**Last updated:** May 28, 2026 (standalone visit vs plan-session distinction)  
 **Stack:** Next.js 16 (App Router) + Prisma + PostgreSQL (Supabase) + Tailwind CSS 4
 
 ---
@@ -416,7 +416,7 @@ Browser print dialog (CTRL+P)
 - Next visit banner (if exists)
 - Three tabs:
   - **Treatment Plan tab** — active plan progress bar, stage timeline (completed/current/upcoming), schedule next sitting, view full plan
-  - **Visit History tab** — timeline of all visits with stage/sitting, date/time, status, notes, next visit date
+  - **Visit History tab** — timeline of all visits with stage/sitting (or "Appointment Visit" for standalone visits), date/time, status, notes, next visit date
   - **Reminders tab** — list of all reminders with channel, template, scheduled date, status
 - No audit log tab (AuditLog-Patient FK removed intentionally — audit logs are entity-generic)
 
@@ -454,10 +454,11 @@ Browser print dialog (CTRL+P)
 
 ### Visit Tracking (`visits/[id]/page.tsx`, `visit-detail-client.tsx`)
 
-- Visit detail card: patient, plan, stage/sitting, date/time, status, notes
+- Visit detail card: patient, plan, stage/sitting (or `—` for standalone visits), date/time, status, notes
 - Print-friendly receipt page (`visits/[id]/receipt/page.tsx`)
-- Receipt layout with patient info, doctor info, receipt number, date, stage/sitting
-- Plan resolved via `overrideReason` (direct) or `patientId` fallback (back-fills `planId` on existing visits)
+- Receipt layout with patient info, doctor info, receipt number, date, stage/sitting (or `— / —` for standalone visits)
+- Plan resolved only via `scheduleSlot.overrideReason` starting with `plan-session:` — standalone appointments are NOT auto-linked to plans
+- Display logic checks `scheduleSlot.overrideReason` (not just plan presence) to distinguish planned sessions from standalone appointments
 
 ### Calendar / Scheduler (`calendar/page.tsx`)
 
@@ -790,8 +791,8 @@ Browser print dialog (CTRL+P)
         │
         ├── Patient arrives → click "Arrive" on calendar slot
         │   └── Creates Visit record, updates slot status to "arrived"
-        ├── Treatment delivered → click "Complete" on calendar
-        │   └── Marks visit completed, updates slot to "completed", advances plan (auto-counts completed sessions), generates receipt
+├── Treatment delivered → click "Complete" on calendar
+│   └── Marks visit completed, updates slot to "completed", advances plan if visit is a planned session (auto-counts completed sessions), generates receipt
         ├── Next session auto-reminder created (if within 24h)
         ├── Receipt number generated (format: ZF-<timestamp>-<random>)
         └── Receipt printable (CTRL+P from receipt page)
@@ -861,7 +862,7 @@ Browser print dialog (CTRL+P)
 All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion, Visit, Reminder, ScheduleSlot. Plus:
 - `searchPatients()` — name/phone search (cached 15s)
 - `bookAppointmentSlot()` — create appointment + auto-reminder (24h + 2h)
-- `arrivePatient()` — mark patient arrived, create Visit, link plan via overrideReason
+- `arrivePatient()` — mark patient arrived, create Visit, link plan only if `scheduleSlot.overrideReason` starts with `plan-session:` (no longer falls back to patient's most recent plan)
 - `completeVisit()` — mark visit complete, advance plan progress (self-healing via session count), auto-create next reminder
 - `retryReminder()`, `pauseReminder()` — reminder management
 - `getDashboardStats()` — aggregated stats via single raw SQL with 5 subqueries (cached 30s)
@@ -913,12 +914,13 @@ All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion,
 - **`updatePlanSession` also uses session count** — Same self-healing approach for rescheduling.
 - **`getTreatmentPlanById` cache removed** — Plan detail now always fetches fresh data (was 30s TTL).
 - **Plan detail computes sittings from sessions** — Uses `sessions.filter(s => s.status === "completed").length` instead of relying on `currentSittingNumber`.
-- **Visit resolution via overrideReason** — `getVisitById` resolves plan through `scheduleSlot.overrideReason` first, falls back to `patientId` when visit has no direct `planId`; back-fills `planId` for existing records.
+- **Visit resolution via overrideReason** — `getVisitById` resolves plan only through `scheduleSlot.overrideReason` starting with `plan-session:`; no longer falls back to `patientId` or auto-links plans on read.
 - **Auto-create 24h reminders on plan creation and visit completion** — `createTreatmentPlan` and `completeVisit` now check for upcoming sessions within 24h and create+send reminders immediately.
 - **Calendar loading state** — Static demo appointments and online requests section removed; loading skeleton shown while DB data fetches.
 - **`toDateIST` handles date-only strings** — Added `T` separator for string dates without time component.
 - **Empty-string guards** — `plannedVisitDates`, `expectedEndDate`, `startDate` treated as null instead of invalid dates.
 - **Arrival workflow local state fix** — `handleArrivePatient` now stores `visitId` from server response so "Complete" button appears immediately after arrival.
+- **Standalone visit vs plan-session distinction** — `arrivePatient` and `getVisitById` no longer auto-link standalone appointments to the patient's most recent treatment plan. Plans are linked only via explicit `plan-session:` override on the schedule slot. All display components (visit history, visit detail, both receipts) check `scheduleSlot.overrideReason` to show "Appointment Visit" / `—` instead of "Stage X, Sitting Y" for standalone visits. This fixes the misleading "Stage 1, Sitting 1" label for simple consultation appointments.
 
 ### What Is Stable
 
