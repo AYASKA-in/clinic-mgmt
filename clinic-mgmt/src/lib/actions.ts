@@ -839,20 +839,6 @@ export async function completeVisit(visitId: string, notes?: string | null) {
     }
 
     if (visit.plan) {
-      const nextSitting = visit.plan.currentSittingNumber + 1
-      const nextStage = nextSitting > visit.plan.sittingsTotal && visit.plan.currentStage < visit.plan.stagesTotal
-        ? visit.plan.currentStage + 1
-        : visit.plan.currentStage
-      const resetSitting = nextStage !== visit.plan.currentStage ? 1 : nextSitting
-
-      await prisma.treatmentPlan.update({
-        where: { id: visit.plan.id },
-        data: {
-          currentSittingNumber: resetSitting,
-          currentStage: nextStage,
-        },
-      })
-
       const sessionToUpdate = visit.plan.sessions.find(
         (s) => s.stageNo === visit.stageNo && s.sittingNo === visit.sittingNo && s.status === "scheduled"
       )
@@ -862,6 +848,19 @@ export async function completeVisit(visitId: string, notes?: string | null) {
           data: { status: "completed" },
         })
       }
+
+      const completedCount = await prisma.planSession.count({
+        where: { planId: visit.plan.id, status: "completed" },
+      })
+      const nextStage = completedCount > visit.plan.sittingsTotal && visit.plan.currentStage < visit.plan.stagesTotal
+        ? visit.plan.currentStage + 1 : visit.plan.currentStage
+      await prisma.treatmentPlan.update({
+        where: { id: visit.plan.id },
+        data: {
+          currentSittingNumber: completedCount,
+          currentStage: nextStage,
+        },
+      })
     }
 
     logAudit({
@@ -1407,6 +1406,27 @@ export async function updatePlanSession(
         where: { overrideReason: slotKey },
         data: { status: slotStatus },
       })
+
+      if (data.status === "completed" && before.status !== "completed") {
+        const completedCount = await prisma.planSession.count({
+          where: { planId: before.plan.id, status: "completed" },
+        })
+        const plan = await prisma.treatmentPlan.findUnique({
+          where: { id: before.plan.id },
+          select: { currentStage: true, sittingsTotal: true, stagesTotal: true },
+        })
+        if (plan) {
+          const nextStage = completedCount > plan.sittingsTotal && plan.currentStage < plan.stagesTotal
+            ? plan.currentStage + 1 : plan.currentStage
+          await prisma.treatmentPlan.update({
+            where: { id: before.plan.id },
+            data: {
+              currentSittingNumber: completedCount,
+              currentStage: nextStage,
+            },
+          })
+        }
+      }
     }
 
     logAudit({
