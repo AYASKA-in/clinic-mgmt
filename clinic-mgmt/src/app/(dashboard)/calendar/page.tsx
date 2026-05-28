@@ -78,21 +78,21 @@ const END_HOUR = 18
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-primary-fixed border-primary-fixed",
-  arrived: "bg-secondary-container border-secondary-container",
-  overdue: "bg-error-container border-error-container",
-  blocked: "bg-surface-variant border-surface-variant",
-  completed: "bg-muted border-muted",
-  cancelled: "bg-destructive/10 border-destructive/10",
+  confirmed: "bg-emerald-50 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700",
+  arrived: "bg-sky-50 border-sky-300 dark:bg-sky-950/40 dark:border-sky-700",
+  overdue: "bg-red-50 border-red-300 dark:bg-red-950/40 dark:border-red-700",
+  blocked: "bg-zinc-100 border-zinc-300 dark:bg-zinc-800/40 dark:border-zinc-600",
+  completed: "bg-zinc-50 border-zinc-200 dark:bg-zinc-900/40 dark:border-zinc-700",
+  cancelled: "bg-red-50/50 border-red-200 dark:bg-red-950/20 dark:border-red-800",
 }
 
 const STATUS_TEXT_COLORS: Record<string, string> = {
-  confirmed: "text-primary-fixed-foreground",
-  arrived: "text-secondary-container-foreground",
-  overdue: "text-error-container-foreground",
-  blocked: "text-surface-variant-foreground",
-  completed: "text-muted-foreground",
-  cancelled: "text-destructive",
+  confirmed: "text-emerald-800 dark:text-emerald-200",
+  arrived: "text-sky-800 dark:text-sky-200",
+  overdue: "text-red-800 dark:text-red-200",
+  blocked: "text-zinc-500 dark:text-zinc-400",
+  completed: "text-zinc-400 dark:text-zinc-500",
+  cancelled: "text-red-400 dark:text-red-500",
 }
 
 const rooms = ["Room 1", "Room 2", "Room 3", "Room 4"]
@@ -1007,31 +1007,31 @@ function AppointmentBlock({
   onArrive?: (slotId: string) => void
   onComplete?: (visitId: string, slotId: string) => void
 }) {
-  const cardH = Math.max(height, 20)
-  const isShort = cardH < 38
-  const isMedium = cardH >= 38 && cardH < 56
+  const cardH = Math.max(height, 22)
+  const isShort = cardH < 40
+  const isMedium = cardH >= 40 && cardH < 58
   return (
     <div
       className={cn(
-        "absolute left-0.5 right-0.5 rounded border overflow-hidden cursor-pointer hover:opacity-90 transition-opacity z-20 group",
+        "absolute left-0.5 right-0.5 rounded-md border overflow-hidden cursor-pointer hover:shadow-md hover:z-30 transition-all duration-150 group",
         STATUS_COLORS[appointment.status] || "bg-muted border-muted"
       )}
       style={{ top, height: cardH }}
     >
       <div className={cn(
-        "flex flex-col h-full",
-        isShort ? "px-1.5 py-0.5" : "px-2 py-1"
+        "flex flex-col h-full min-w-0",
+        isShort ? "px-2 py-1 gap-0" : isMedium ? "px-2.5 py-1.5 gap-0.5" : "px-3 py-2 gap-1"
       )}>
-        <div className="flex items-center justify-between gap-1 min-w-0">
+        <div className="flex items-center justify-between gap-1.5 min-w-0">
           <span className={cn(
-            "truncate font-bold",
+            "truncate font-semibold leading-tight",
             isShort ? "text-[11px]" : "text-xs",
             STATUS_TEXT_COLORS[appointment.status]
           )}>
             {appointment.patientName}
           </span>
           <span className={cn(
-            "shrink-0",
+            "shrink-0 font-medium leading-tight",
             isShort ? "text-[9px]" : "text-[10px]",
             STATUS_TEXT_COLORS[appointment.status]
           )}>
@@ -1040,7 +1040,7 @@ function AppointmentBlock({
         </div>
         {!isShort && (
           <span className={cn(
-            "text-[10px] truncate mt-0.5",
+            "text-[10px] truncate leading-tight",
             STATUS_TEXT_COLORS[appointment.status]
           )}>
             {appointment.practitioner}
@@ -1048,22 +1048,21 @@ function AppointmentBlock({
         )}
         {!isMedium && !isShort && (
           <span className={cn(
-            "text-[10px] truncate mt-0.5",
+            "text-[10px] truncate leading-tight",
             STATUS_TEXT_COLORS[appointment.status]
           )}>
             {appointment.reason}
           </span>
         )}
         <div className={cn(
-          "flex gap-1",
-          isShort ? "mt-auto" : "mt-0.5",
-          "opacity-0 group-hover:opacity-100 transition-opacity"
+          "flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity",
+          isShort ? "mt-auto pt-0" : "mt-auto pt-0.5"
         )}>
           {appointment.status === "confirmed" && appointment.visitStatus !== "arrived" && appointment.visitStatus !== "completed" && onArrive && (
             <button
               className={cn(
-                "bg-emerald-500 text-white rounded hover:bg-emerald-600 leading-none",
-                isShort ? "text-[9px] px-1 py-0.5" : "text-[10px] px-1.5 py-0.5"
+                "bg-emerald-500 text-white rounded-md hover:bg-emerald-600 active:bg-emerald-700 leading-tight font-medium",
+                isShort ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2 py-0.5"
               )}
               onClick={(e) => { e.stopPropagation(); onArrive(appointment.id) }}
             >
@@ -1073,8 +1072,8 @@ function AppointmentBlock({
           {(appointment.status === "arrived" || appointment.visitStatus === "arrived") && appointment.visitId && onComplete && (
             <button
               className={cn(
-                "bg-blue-500 text-white rounded hover:bg-blue-600 leading-none",
-                isShort ? "text-[9px] px-1 py-0.5" : "text-[10px] px-1.5 py-0.5"
+                "bg-blue-500 text-white rounded-md hover:bg-blue-600 active:bg-blue-700 leading-tight font-medium",
+                isShort ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2 py-0.5"
               )}
               onClick={(e) => { e.stopPropagation(); onComplete(appointment.visitId!, appointment.id) }}
             >
@@ -1083,7 +1082,7 @@ function AppointmentBlock({
           )}
           {appointment.status === "completed" && (
             <span className={cn(
-              "text-emerald-600 font-medium",
+              "text-emerald-600 font-semibold leading-tight",
               isShort ? "text-[9px]" : "text-[10px]"
             )}>Done</span>
           )}
@@ -1091,7 +1090,7 @@ function AppointmentBlock({
       </div>
       {appointment.status === "overdue" && (
         <div className="absolute top-0.5 right-0.5">
-          <AlertTriangle className="size-2.5 text-destructive" />
+          <AlertTriangle className="size-3 text-destructive" />
         </div>
       )}
     </div>

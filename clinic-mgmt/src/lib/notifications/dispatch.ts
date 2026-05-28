@@ -28,9 +28,9 @@ async function getAppointmentContext(reminder: {
 
   return {
     appointmentDate: slot.startTime.toLocaleDateString("en-US", {
-      weekday: "long", month: "long", day: "numeric", year: "numeric",
+      weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "Asia/Kolkata",
     }),
-    appointmentTime: `${slot.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${slot.endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`,
+    appointmentTime: `${slot.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })} - ${slot.endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}`,
     practitionerName: slot.doctor?.name || "",
     location: "ZenFlow Clinic",
   }

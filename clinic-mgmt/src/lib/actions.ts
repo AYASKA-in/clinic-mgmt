@@ -439,10 +439,10 @@ export async function createTreatmentPlan(data: {
       const [sessionH, sessionM] = (data.sessionTime || "10:00").split(":").map(Number)
 
       const totalSessions = data.stagesTotal * data.sittingsTotal
+      const [sY, sM, sD] = data.startDate ? data.startDate.split("-").map(Number) : [0, 0, 0]
       const sessionData = Array.from({ length: totalSessions }, (_, i) => {
-        const d = new Date(startDate)
-        d.setDate(d.getDate() + i * data.intervalDays)
-        const dateStr = d.toISOString().split("T")[0]
+        const d = new Date(sY, sM - 1, sD + i * data.intervalDays)
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
         const stageNo = Math.floor(i / data.sittingsTotal) + 1
         const sittingNo = (i % data.sittingsTotal) + 1
         return {
@@ -1137,9 +1137,9 @@ export async function bookAppointmentSlot(data: {
       const clinicName = "ZenFlow Clinic"
 
       const apptDate = start.toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric", year: "numeric",
+        weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "Asia/Kolkata",
       })
-      const apptTime = `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+      const apptTime = `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}`
 
       const { subject, html } = buildReminderEmail(patient.name, "booking_confirmation", apptDate, {
         appointmentDate: apptDate,

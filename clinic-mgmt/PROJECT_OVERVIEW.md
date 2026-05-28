@@ -1,7 +1,7 @@
 # ZenFlow Clinic — Project Overview
 
-**Version:** 0.2.0  
-**Last updated:** May 27, 2026 (performance + schedule overhaul)  
+**Version:** 0.3.0  
+**Last updated:** May 28, 2026 (arrival workflow fix + system audit)  
 **Stack:** Next.js 16 (App Router) + Prisma + PostgreSQL (Supabase) + Tailwind CSS 4
 
 ---
@@ -322,28 +322,30 @@ New Appointment dialog opens
 
 ```
 Reminder Creation
-  (automatic on booking OR manual from reminders page)
-       │
-       ├── 24h appointment reminder (if appointment >24h away)
-       └── 2h appointment reminder (if appointment >2h away)
-       │
-       ▼
+  (automatic on booking, plan creation, visit completion — OR manual from reminders page)
+        │
+        ├── 24h appointment reminder (if appointment >24h away)
+        └── 2h appointment reminder (if appointment >2h away)
+        │
+        ▼
 Reminder record (status: "pending", channel: "email", template: "24h_appointment"|"2h_appointment"|etc.)
-       │
-       ▼
-CRON endpoint (GET /api/cron/process-reminders)
-  - Protected by x-cron-secret header
-  - Finds pending reminders where sendAt <= now, attempts < 5
-  - Calls dispatchReminder() for each (up to 50 per run)
-       │
-       ▼
+        │
+        ▼
+Dispatch paths:
+  ├── Immediate (fire-and-forget): On completeVisit / createTreatmentPlan for sessions within 24h
+  └── CRON endpoint (GET /api/cron/process-reminders)
+       - Protected by x-cron-secret header
+       - Finds pending reminders where sendAt <= now, attempts < 5
+       - Calls dispatchReminder() for each (up to 50 per run — currently concurrent, needs sequential fix)
+        │
+        ▼
 dispatchReminder():
-       │
-       ├── Patient has email? → no → mark failed "Patient has no email address"
-       ├── Build email (buildReminderEmail — 6 professional HTML templates with clinic branding)
-       ├── Send via Resend API
-       ├── Success → status: "sent", attempts++
-       └── Failure → status: "failed", lastError, attempts++
+        │
+        ├── Patient has email? → no → mark failed "Patient has no email address"
+        ├── Build email (buildReminderEmail — 6 professional HTML templates with clinic branding)
+        ├── Send via Resend API
+        ├── Success → status: "sent", attempts++
+        └── Failure → status: "failed", lastError, attempts++
 ```
 
 **Email templates** are now professionally styled with:
@@ -429,7 +431,8 @@ Browser print dialog (CTRL+P)
 
 - Multi-field form: patient selector, doctor selector, condition, stages total, sittings total, interval days, planned visit dates, expected end date, start date, status, special notes
 - Patient pre-selected if navigated from patient detail (`?patientId=`)
-- Creates plan + generates PlanSession records for each sitting
+- Creates plan + generates PlanSession records for each sitting + ScheduleSlot records linked via `overrideReason: "plan-session:{planId}:{sessionNumber}"`
+- Auto-creates 24h reminders for sessions scheduled within 24h (fire-and-forget send)
 - Creates audit log
 - Redirects to plan detail on success
 
@@ -454,6 +457,7 @@ Browser print dialog (CTRL+P)
 - Visit detail card: patient, plan, stage/sitting, date/time, status, notes
 - Print-friendly receipt page (`visits/[id]/receipt/page.tsx`)
 - Receipt layout with patient info, doctor info, receipt number, date, stage/sitting
+- Plan resolved via `overrideReason` (direct) or `patientId` fallback (back-fills `planId` on existing visits)
 
 ### Calendar / Scheduler (`calendar/page.tsx`)
 
@@ -463,11 +467,12 @@ Browser print dialog (CTRL+P)
 - Day view: single-day detailed view
 - Month view: grid with appointment dots
 - Current time indicator (red line, updates every minute)
-- Side panel: practitioner filter, room filter
-- Online requests panel (mock data — shows pending appointment requests)
-- New Appointment dialog with patient search (debounced), date/time/duration, reason, override conflict checkbox
+- Side panel: practitioner filter (populated from DB), room filter
+- New Appointment dialog with patient search (debounced), date/time/duration, reason, practitioner dropdown, override conflict checkbox
 - Patient search connected to server action (`searchPatients`)
-- Booking creates ScheduleSlot + reminder
+- Booking creates ScheduleSlot + 24h/2h reminders (if patient has email)
+- Arrive → Complete → Done workflow with local state sync (visitId stored on arrival)
+- Loading skeleton while data fetches (no static demo data)
 
 ### Schedule / Today's Schedule (`schedule/page.tsx`, `schedule/appointment-slots.tsx`)
 
@@ -781,13 +786,15 @@ Browser print dialog (CTRL+P)
        └── Slot conflicts flagged unless override is used
               │
               ▼
-5. Visit occurs — receptionist/doctor records it
-       │
-       ├── Patient arrives → update visit status
-       ├── Record notes, stage, sitting
-       ├── Set next visit date
-       ├── Receipt number generated
-       └── Receipt printable (CTRL+P from receipt page)
+ 5. Visit occurs — receptionist/doctor records it
+        │
+        ├── Patient arrives → click "Arrive" on calendar slot
+        │   └── Creates Visit record, updates slot status to "arrived"
+        ├── Treatment delivered → click "Complete" on calendar
+        │   └── Marks visit completed, updates slot to "completed", advances plan (auto-counts completed sessions), generates receipt
+        ├── Next session auto-reminder created (if within 24h)
+        ├── Receipt number generated (format: ZF-<timestamp>-<random>)
+        └── Receipt printable (CTRL+P from receipt page)
               │
               ▼
 6. Reminders are sent (automated)
@@ -849,11 +856,13 @@ Browser print dialog (CTRL+P)
 | `/api/auth/logout` | POST | Clear session cookie |
 | `/api/cron/process-reminders` | GET | Process pending reminders (x-cron-secret) |
 
-### Server Actions (src/lib/actions.ts, ~1586 lines)
+### Server Actions (src/lib/actions.ts, ~1717 lines)
 
 All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion, Visit, Reminder, ScheduleSlot. Plus:
 - `searchPatients()` — name/phone search (cached 15s)
-- `bookAppointmentSlot()` — create appointment + auto-reminder
+- `bookAppointmentSlot()` — create appointment + auto-reminder (24h + 2h)
+- `arrivePatient()` — mark patient arrived, create Visit, link plan via overrideReason
+- `completeVisit()` — mark visit complete, advance plan progress (self-healing via session count), auto-create next reminder
 - `retryReminder()`, `pauseReminder()` — reminder management
 - `getDashboardStats()` — aggregated stats via single raw SQL with 5 subqueries (cached 30s)
 - `getDoctors()`, `getUsers()` — cached queries
@@ -861,7 +870,7 @@ All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion,
 ### What Has Been Hardened / Fixed
 
 - **Role-based access control added to ALL 35 server actions** — every exported function now calls `requireAuth()` or `requireRole()` before executing. Previously, zero actions had auth checks.
-- **Proxy middleware enforces roles** — `/users` and `/settings` are blocked for non-admin users; `/plans/new` requires doctor role.
+- **Proxy middleware enforces roles** — `/users` and `/settings` are blocked for non-admin users; `/plans/new` requires doctor role. *(Note: file is named `proxy.ts` not `middleware.ts`, so middleware is currently inactive.)*
 - **User creation requires password** — no more hardcoded `"temporary123"` default. Password field added to create/edit forms with 6-character minimum.
 - **`updateUser` audit log bug fixed** — was logging the target user's ID as the actor; now correctly logs the session user's ID.
 - **Self-deactivation prevented** — admin cannot deactivate their own account or change their own role.
@@ -899,6 +908,17 @@ All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion,
 - **Session time picker** — Plan session edit dialog includes time input; default session time 10:00 AM.
 - **Standalone receipt route** — `/receipt/[id]` page outside dashboard layout for clean PDF prints (auto-opens browser Print dialog).
 - **Seed data fixed** — PlanSessions created for all sittings, patient emails set, non-overlapping slots, duplicates cleaned, receipt format updated, startDate on plans.
+- **Server actions return `{ error }` instead of throwing** — `arrivePatient`, `completeVisit`, `createTreatmentPlan`, `bookAppointmentSlot` return error objects instead of throwing, preventing React error boundary from catching them.
+- **`completeVisit` advances plan via session count** — Uses `count({ where: { status: "completed" } })` instead of incrementing `currentSittingNumber`, self-healing if sessions are manually marked.
+- **`updatePlanSession` also uses session count** — Same self-healing approach for rescheduling.
+- **`getTreatmentPlanById` cache removed** — Plan detail now always fetches fresh data (was 30s TTL).
+- **Plan detail computes sittings from sessions** — Uses `sessions.filter(s => s.status === "completed").length` instead of relying on `currentSittingNumber`.
+- **Visit resolution via overrideReason** — `getVisitById` resolves plan through `scheduleSlot.overrideReason` first, falls back to `patientId` when visit has no direct `planId`; back-fills `planId` for existing records.
+- **Auto-create 24h reminders on plan creation and visit completion** — `createTreatmentPlan` and `completeVisit` now check for upcoming sessions within 24h and create+send reminders immediately.
+- **Calendar loading state** — Static demo appointments and online requests section removed; loading skeleton shown while DB data fetches.
+- **`toDateIST` handles date-only strings** — Added `T` separator for string dates without time component.
+- **Empty-string guards** — `plannedVisitDates`, `expectedEndDate`, `startDate` treated as null instead of invalid dates.
+- **Arrival workflow local state fix** — `handleArrivePatient` now stores `visitId` from server response so "Complete" button appears immediately after arrival.
 
 ### What Is Stable
 
@@ -906,14 +926,15 @@ All CRUD operations for: Patient, User, TreatmentPlan, PlanSession, PlanVersion,
 - All server actions pass build
 - Auth flow (login/logout/session verification)
 - Patient CRUD with duplicate detection
-- Treatment plan creation with auto-generated sessions + ScheduleSlot sync
-- Visit recording with receipt generation
-- Calendar with DB-connected appointment booking
-- Plan session edits persist and sync to calendar ScheduleSlots
-- Reminder dispatch via Resend email API
+- Treatment plan creation with auto-generated sessions + ScheduleSlot sync + auto-reminders
+- Visit recording with receipt generation + plan back-fill
+- Calendar with DB-connected appointment booking (arrive → complete workflow)
+- Plan session edits persist and sync to calendar ScheduleSlots (self-healing progress counter)
+- Reminder dispatch via Resend email API (inline + CRON)
 - Audit logging on all mutations (fire-and-forget, non-blocking)
 - Role-based UI visibility
 - Seed data produces a fully populated demo environment
+- 21 database indexes for query performance
 
 ---
 
@@ -1153,22 +1174,24 @@ Development uses a Supabase Free plan PostgreSQL instance. The `DATABASE_URL` us
 - **Audit log retention** — No log rotation or archival strategy
 
 ### Partially Implemented / Gaps
-- **Calendar page** — Falls back to hardcoded mock appointments (`initialAppointments`) when no DB slots load. The "Online Requests" panel is mock data only (not connected to any real request intake system).
-- **Search functionality** — Global search bar in the header is present in the UI but not wired to any search logic.
+- **Global search** — Search bar in the header is present in the UI but not wired to any search logic.
 - **Export** — Audit page has an Export button with no backend implementation.
 - **Room tracking** — Calendar page references rooms (Room 1-4) but there is no Room model or database table — rooms are hardcoded strings.
 - **Consent flags** — Patient model has `consentFlags` field but no structured consent management UI.
-- **visitId on Reminder** — Reminders can be linked to a visit via `visitId`, but this is not consistently populated by the dispatch logic.
 - **`plannedVisitDates` on TreatmentPlan** — Stored as a string (likely JSON) but no structured parsing or calendar integration.
 - **`connection_limit=1`** — The number one constraint and most common source of runtime errors. Any parallel Prisma queries cause `P2024` timeout. All DB queries must run sequentially.
-- **No mutation-based cache invalidation** — Mutations don't call `clearCache()` so cached data can be up to 30s stale.
+- **No mutation-based cache invalidation** — 15+ mutations don't call `clearCache()` so cached data can be up to 30-60s stale (dashboard stats, today schedule, patient detail, search results).
+- **Middleware file named `proxy.ts` instead of `middleware.ts`** — Route protection is currently non-functional; Next.js never executes it.
+- **`dispatch.ts` concurrency** — `Promise.allSettled` launches up to 50 concurrent reminder dispatches, each doing 2-3 sequential DB queries. With `connection_limit=1`, this causes severe queuing and likely pool timeouts.
+- **CRON trigger not set up** — `/api/cron/process-reminders` has no external caller. Reminders are sent inline at creation/completion but ongoing processing won't happen.
+- **Logout redirect fallback** — Uses `NEXT_PUBLIC_APP_URL` with fallback to `http://localhost:3000`. If missing in production, users redirect to localhost.
 
 ### Technical Debt
 - **No automated tests** — No unit, integration, or E2E tests. Only build-time TypeScript and lint checks.
 - **Cache has no cross-request persistence** — In-memory `Map` cache is per-server-instance. In a multi-server deployment (Vercel, multiple replicas), each instance has its own cache, reducing effectiveness.
 - **Seed script is idempotent for users only** — Uses `upsert` for users but `create` for most other data (deleteMany + create pattern for full reseed).
-- **No `clearCache()` on mutations** — Data mutations (create/update/delete) don't flush stale cache entries. TTL-based expiry (30-60s) means slight staleness is tolerated.
 - **`src/lib/supabase.ts` is present but unused** — Supabase clients are initialized but no code uses them directly; all DB access is through Prisma.
+- **`updateTreatmentPlan` lacks server-side range validation** — `stagesTotal: 0, sittingsTotal: 0` can create a plan with 0 sessions (only client-side guards exist).
 
 ---
 
@@ -1176,39 +1199,47 @@ Development uses a Supabase Free plan PostgreSQL instance. The `DATABASE_URL` us
 
 ### Near-term (Logical Next Steps)
 
-1. **Role-based middleware** — Move role enforcement from individual server actions to middleware for consistent route-level protection.
+1. **Rename middleware `proxy.ts` → `middleware.ts`** — Enable route-level protection (currently non-functional).
 
-2. **Global search** — Wire the header search bar to search patients, plans, visits, and users.
+2. **Fix `dispatch.ts` concurrency** — Replace `Promise.allSettled` with sequential processing to prevent pool timeouts on single-connection DB.
 
-3. **Automated tests** — Add Vitest or Playwright tests for critical flows (login, patient CRUD, booking).
+3. **Add mutation cache invalidation** — Call `clearCache()` on all 15+ mutations missing it (patient CRUD, plan CRUD, visits, bookings, schedule).
 
-4. **Calendar improvements** — Replace mock data with full DB integration for the calendar view; add drag-to-reschedule.
+4. **Set up CRON trigger** — Configure cron-job.org (or Vercel CRON) to hit `GET /api/cron/process-reminders` every 5-15 minutes.
 
-5. **Patient portal** — Simple patient-facing page to view upcoming appointments and confirm attendance.
+5. **Add range validation to `updateTreatmentPlan`** — Server-side guard for `stagesTotal`/`sittingsTotal` to prevent 0-session plans.
 
-6. **Export/Reporting** — Implement CSV export for patients, visits, audit logs.
+6. **Harden logout redirect** — Fix `NEXT_PUBLIC_APP_URL` fallback to avoid `localhost` in production.
+
+7. **Global search** — Wire the header search bar to search patients, plans, visits, and users.
+
+8. **Automated tests** — Add Vitest or Playwright tests for critical flows (login, patient CRUD, booking, arrive→complete).
 
 ### Medium-term
 
-7. **Bulk operations** — Import patients from CSV, bulk create reminders, mass status updates.
+9. **Patient portal** — Simple patient-facing page to view upcoming appointments and confirm attendance.
 
-8. **File attachments** — Upload patient documents, consent forms, treatment diagrams.
+10. **Export/Reporting** — Implement CSV export for patients, visits, audit logs.
 
-9. **Treatment plan templates** — Reusable plan templates for common conditions.
+11. **Bulk operations** — Import patients from CSV, bulk create reminders, mass status updates.
 
-10. **SMS channel (optional future)** — If budget permits, add Twilio or similar SMS integration as an opt-in channel.
+12. **File attachments** — Upload patient documents, consent forms, treatment diagrams.
 
-11. **Mobile improvements** — PWA support, touch-optimized calendar interactions.
+13. **Treatment plan templates** — Reusable plan templates for common conditions.
+
+14. **SMS channel (optional future)** — If budget permits, add Twilio or similar SMS integration as an opt-in channel.
+
+15. **Mobile improvements** — PWA support, touch-optimized calendar interactions.
 
 ### Long-term
 
-12. **Analytics dashboard** — Charts for visit trends, patient acquisition, treatment outcomes.
+16. **Analytics dashboard** — Charts for visit trends, patient acquisition, treatment outcomes.
 
-13. **Insurance/billing module** — Invoice generation, payment tracking.
+17. **Insurance/billing module** — Invoice generation, payment tracking.
 
-14. **Multi-clinic support** — Tenant isolation for multi-location practices.
+18. **Multi-clinic support** — Tenant isolation for multi-location practices.
 
-15. **API for third-party integrations** — REST API for EHR integration or booking widgets.
+19. **API for third-party integrations** — REST API for EHR integration or booking widgets.
 
 ---
 
