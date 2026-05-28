@@ -58,6 +58,9 @@ export function toDateIST(value: string): Date {
   if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
     return new Date(value)
   }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(value + "T00:00:00+05:30")
+  }
   return new Date(value + "+05:30")
 }
 

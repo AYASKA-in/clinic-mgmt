@@ -389,12 +389,12 @@ export async function createTreatmentPlan(data: {
       return { success: false, error: "Selected user is not a doctor" }
     }
 
-    const startDate = data.startDate ? toDateIST(data.startDate) : new Date()
+    const startDate = data.startDate?.trim() ? toDateIST(data.startDate) : new Date()
 
     if (isPastDate(startDate)) {
       return { success: false, error: "Start date cannot be in the past" }
     }
-    if (data.expectedEndDate && isPastDate(toDateIST(data.expectedEndDate))) {
+    if (data.expectedEndDate?.trim() && isPastDate(toDateIST(data.expectedEndDate))) {
       return { success: false, error: "Expected end date cannot be in the past" }
     }
     if (data.stagesTotal < 1 || data.stagesTotal > 30) {
@@ -419,8 +419,8 @@ export async function createTreatmentPlan(data: {
           stagesTotal: data.stagesTotal,
           sittingsTotal: data.sittingsTotal,
           intervalDays: data.intervalDays,
-          plannedVisitDates: data.plannedVisitDates ?? null,
-          expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
+          plannedVisitDates: data.plannedVisitDates?.trim() ? data.plannedVisitDates : null,
+          expectedEndDate: data.expectedEndDate?.trim() ? new Date(data.expectedEndDate) : null,
           startDate,
           specialNotes: data.specialNotes ?? null,
           status: data.status ?? "active",
@@ -477,8 +477,8 @@ export async function createTreatmentPlan(data: {
           intervalDays: data.intervalDays,
           condition: data.condition,
           specialNotes: data.specialNotes ?? null,
-          plannedVisitDates: data.plannedVisitDates ?? null,
-          expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
+          plannedVisitDates: data.plannedVisitDates?.trim() ? data.plannedVisitDates : null,
+          expectedEndDate: data.expectedEndDate?.trim() ? new Date(data.expectedEndDate) : null,
           status: data.status ?? "active",
           changeNotes: "Initial plan created",
         },
@@ -533,8 +533,8 @@ export async function updateTreatmentPlan(
           ...(data.intervalDays !== undefined && { intervalDays: data.intervalDays }),
           ...(data.condition !== undefined && { condition: data.condition }),
           ...(data.specialNotes !== undefined && { specialNotes: data.specialNotes }),
-          ...(data.plannedVisitDates !== undefined && { plannedVisitDates: data.plannedVisitDates }),
-          ...(data.expectedEndDate !== undefined && { expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null }),
+          ...(data.plannedVisitDates !== undefined && { plannedVisitDates: data.plannedVisitDates?.trim() ? data.plannedVisitDates : null }),
+          ...(data.expectedEndDate !== undefined && { expectedEndDate: data.expectedEndDate?.trim() ? new Date(data.expectedEndDate) : null }),
           ...(data.status !== undefined && { status: data.status }),
           ...(data.currentStage !== undefined && { currentStage: data.currentStage }),
           ...(data.currentSittingNumber !== undefined && { currentSittingNumber: data.currentSittingNumber }),
@@ -551,8 +551,8 @@ export async function updateTreatmentPlan(
           intervalDays: data.intervalDays ?? before.intervalDays,
           condition: data.condition ?? before.condition,
           specialNotes: data.specialNotes ?? before.specialNotes,
-          plannedVisitDates: data.plannedVisitDates ?? before.plannedVisitDates,
-          expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : before.expectedEndDate,
+          plannedVisitDates: data.plannedVisitDates?.trim() ? data.plannedVisitDates : before.plannedVisitDates,
+          expectedEndDate: data.expectedEndDate?.trim() ? new Date(data.expectedEndDate) : before.expectedEndDate,
           status: data.status ?? before.status,
           changeNotes: data.changeNotes ?? "Plan updated",
         },
