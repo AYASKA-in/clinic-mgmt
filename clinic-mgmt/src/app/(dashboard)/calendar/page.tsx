@@ -398,8 +398,9 @@ export default function CalendarPage() {
       toast.error(result.error)
       return
     }
+    const visit = result as { id: string }
     setAppointments((prev) =>
-      prev.map((a) => (a.id === slotId ? { ...a, status: "arrived" as const, visitStatus: "arrived" } : a))
+      prev.map((a) => (a.id === slotId ? { ...a, status: "arrived" as const, visitStatus: "arrived", visitId: visit.id } : a))
     )
     toast.success("Patient marked as arrived")
   }, [])
