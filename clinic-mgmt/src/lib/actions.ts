@@ -701,7 +701,7 @@ export async function cancelVisit(id: string) {
 
 export async function getVisitById(id: string) {
   await requireAuth()
-  return prisma.visit.findUnique({
+  const visit = await prisma.visit.findUnique({
     where: { id },
     include: {
       patient: true,
@@ -711,6 +711,20 @@ export async function getVisitById(id: string) {
       },
     },
   })
+  if (!visit) return null
+
+  if (!visit.plan && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")) {
+    const planId = visit.scheduleSlot.overrideReason.split(":")[1]
+    const plan = await prisma.treatmentPlan.findUnique({
+      where: { id: planId },
+      include: { doctor: { select: { name: true } } },
+    })
+    if (plan) {
+      (visit as any).plan = plan
+      await prisma.visit.update({ where: { id }, data: { planId } })
+    }
+  }
+  return visit
 }
 
 export async function createVisit(data: {
