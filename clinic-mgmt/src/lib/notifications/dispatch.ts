@@ -85,7 +85,45 @@ export async function dispatchReminder(reminderId: string) {
   }
 }
 
+async function ensureRemindersExist() {
+  const now = new Date()
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+
+  const upcomingSlots = await prisma.scheduleSlot.findMany({
+    where: {
+      status: "booked",
+      patientId: { not: null },
+      startTime: { gte: now, lte: in24h },
+    },
+    include: { patient: { select: { email: true } } },
+  })
+
+  for (const slot of upcomingSlots) {
+    if (!slot.patientId || !slot.patient?.email) continue
+
+    const existing = await prisma.reminder.findFirst({
+      where: { patientId: slot.patientId, visitId: slot.id, template: "24h_appointment" },
+    })
+    if (existing) continue
+
+    const sendAt = new Date(slot.startTime.getTime() - 24 * 60 * 60 * 1000)
+    if (sendAt > now) continue
+
+    await prisma.reminder.create({
+      data: {
+        patientId: slot.patientId,
+        visitId: slot.id,
+        channel: "email",
+        template: "24h_appointment",
+        sendAt: now,
+      },
+    })
+  }
+}
+
 export async function processPendingReminders() {
+  await ensureRemindersExist()
+
   const pending = await prisma.reminder.findMany({
     where: {
       status: "pending",
@@ -95,7 +133,7 @@ export async function processPendingReminders() {
     take: 50,
   })
 
-  const results = { processed: 0, failed: 0 }
+  const results = { created: 0, processed: 0, failed: 0 }
   await Promise.allSettled(
     pending.map(async (r) => {
       try {

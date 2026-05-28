@@ -505,6 +505,28 @@ export async function createTreatmentPlan(data: {
       return p
     })
 
+    const now = new Date()
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const patientWithEmail = await prisma.patient.findUnique({ where: { id: data.patientId }, select: { email: true } })
+    if (patientWithEmail?.email) {
+      const nearSessions = await prisma.planSession.findMany({
+        where: { planId: plan.id, scheduledDate: { gte: now, lte: in24h }, status: "scheduled" },
+      })
+      for (const s of nearSessions) {
+        const existing = await prisma.reminder.findFirst({
+          where: { patientId: data.patientId, template: "24h_appointment", visitId: null },
+        })
+        if (!existing) {
+          const reminder = await prisma.reminder.create({
+            data: { patientId: data.patientId, channel: "email", template: "24h_appointment", sendAt: now },
+          })
+          import("@/lib/notifications/dispatch").then(({ dispatchReminder }) => {
+            dispatchReminder(reminder.id).catch(() => {})
+          })
+        }
+      }
+    }
+
     return { success: true, data: plan }
   } catch (e: any) {
     return { success: false, error: e.message || "Failed to create treatment plan" }
@@ -852,7 +874,7 @@ export async function completeVisit(visitId: string, notes?: string | null) {
     const session = await requireRole("doctor")
     const visit = await prisma.visit.findUnique({
       where: { id: visitId },
-      include: { scheduleSlot: true, plan: { include: { sessions: true } } },
+      include: { patient: { select: { email: true } }, scheduleSlot: true, plan: { include: { sessions: true } } },
     })
     if (!visit) return { error: "Visit not found" }
     if (visit.visitStatus === "completed") return { error: "Visit is already completed" }
@@ -905,6 +927,34 @@ export async function completeVisit(visitId: string, notes?: string | null) {
           where: { id: planId },
           data: { currentSittingNumber: completedCount, currentStage: nextStage },
         })
+      }
+
+      const nextSession = await prisma.planSession.findFirst({
+        where: { planId, status: "scheduled" },
+        orderBy: { sessionNumber: "asc" },
+        include: { plan: { select: { patientId: true } } },
+      })
+      if (nextSession && visit.patient?.email) {
+        const now = new Date()
+        const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        if (nextSession.scheduledDate <= in24h && nextSession.scheduledDate > now) {
+          const existing = await prisma.reminder.findFirst({
+            where: { patientId: nextSession.plan.patientId, template: "24h_appointment", visitId: null },
+          })
+          if (!existing) {
+            const reminder = await prisma.reminder.create({
+              data: {
+                patientId: nextSession.plan.patientId,
+                channel: "email",
+                template: "24h_appointment",
+                sendAt: now,
+              },
+            })
+            import("@/lib/notifications/dispatch").then(({ dispatchReminder }) => {
+              dispatchReminder(reminder.id).catch(() => {})
+            })
+          }
+        }
       }
     }
 
