@@ -153,7 +153,7 @@ export default function ReceiptPage() {
     )
   }
 
-  const visitType = visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
+  const visitType = !visit.plan ? "Appointment" : visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
   const practitioner = visit.plan?.doctor?.name || visit.scheduleSlot?.doctor?.name || "N/A"
   const progress = visit.plan
     ? `Stage ${visit.plan.currentStage}/${visit.plan.stagesTotal}, Sitting ${visit.plan.currentSittingNumber}/${visit.plan.sittingsTotal}`
@@ -269,7 +269,7 @@ export default function ReceiptPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Stage / Sitting</span>
                     <span className="font-medium">
-                      {visit.stageNo} / {visit.sittingNo}
+                      {visit.plan ? `${visit.stageNo} / ${visit.sittingNo}` : "— / —"}
                     </span>
                   </div>
                   <div className="flex justify-between">

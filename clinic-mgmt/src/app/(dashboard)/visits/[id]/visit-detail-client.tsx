@@ -63,6 +63,7 @@ type VisitData = {
 }
 
 const visitTypeLabel = (visit: VisitData): string => {
+  if (!visit.plan) return "Appointment Visit"
   if (visit.sittingNo === 1 && visit.stageNo === 1) return "Initial Visit"
   return "Follow-up Visit"
 }
@@ -198,13 +199,13 @@ export function VisitDetailClient({ visit }: { visit: VisitData }) {
               </div>
               <div>
                 <span className="text-muted-foreground">Stage</span>
-                <p className="font-medium">{visit.stageNo}</p>
+                <p className="font-medium">{visit.plan ? visit.stageNo : "—"}</p>
               </div>
             </div>
             <div className="space-y-3">
               <div>
                 <span className="text-muted-foreground">Sitting</span>
-                <p className="font-medium">{visit.sittingNo}</p>
+                <p className="font-medium">{visit.plan ? visit.sittingNo : "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Receipt #</span>

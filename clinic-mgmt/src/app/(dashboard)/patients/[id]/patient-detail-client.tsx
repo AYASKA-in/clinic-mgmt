@@ -308,7 +308,9 @@ export function PatientDetailClient({
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className="text-sm font-medium">
-                                Stage {visit.stageNo}, Sitting {visit.sittingNo}
+                                {visit.plan
+                                  ? `Stage ${visit.stageNo}, Sitting ${visit.sittingNo}`
+                                  : "Appointment Visit"}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatDateTime(visit.dateTime)}
