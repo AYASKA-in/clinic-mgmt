@@ -86,9 +86,12 @@ export default function StandaloneReceiptPage() {
   }
 
   const visitType = visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
-  const duration = visit.plan
+  const progress = visit.plan
     ? `Stage ${visit.plan.currentStage}/${visit.plan.stagesTotal}, Sitting ${visit.plan.currentSittingNumber}/${visit.plan.sittingsTotal}`
-    : "—"
+    : "No active treatment plan"
+  const phase = visit.plan
+    ? `Stage ${visit.stageNo} of ${visit.plan.stagesTotal}`
+    : "N/A"
 
   return (
     <div className="min-h-screen bg-white print:bg-white">
@@ -147,7 +150,7 @@ export default function StandaloneReceiptPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between"><span className="text-gray-500">Date & Time</span><span className="font-medium">{formatDateTime(visit.dateTime)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Type</span><span className="font-medium">{visitType}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{duration}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Progress</span><span className="font-medium">{progress}</span></div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between"><span className="text-gray-500">Stage / Sitting</span><span className="font-medium">{visit.stageNo} / {visit.sittingNo}</span></div>

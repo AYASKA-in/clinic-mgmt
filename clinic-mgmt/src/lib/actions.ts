@@ -763,10 +763,21 @@ export async function arrivePatient(slotId: string) {
     if (slot.status !== "booked") return { error: "Slot is not booked" }
     if (slot.visit) return { error: "Patient already arrived for this slot" }
 
-    const plan = await prisma.treatmentPlan.findFirst({
-      where: { patientId: slot.patientId!, status: "active" },
-      select: { id: true, currentStage: true, currentSittingNumber: true, sittingsTotal: true, stagesTotal: true },
-    })
+    let plan = null
+    if (slot.overrideReason?.startsWith("plan-session:")) {
+      const planId = slot.overrideReason.split(":")[1]
+      plan = await prisma.treatmentPlan.findUnique({
+        where: { id: planId },
+        include: { sessions: { where: { status: "scheduled" }, orderBy: { sessionNumber: "asc" } } },
+      })
+    }
+    if (!plan) {
+      plan = await prisma.treatmentPlan.findFirst({
+        where: { patientId: slot.patientId! },
+        orderBy: { createdAt: "desc" },
+        include: { sessions: { where: { status: "scheduled" }, orderBy: { sessionNumber: "asc" } } },
+      })
+    }
 
     const receiptNumber = `ZF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 

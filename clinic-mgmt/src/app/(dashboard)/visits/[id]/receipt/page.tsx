@@ -155,9 +155,9 @@ export default function ReceiptPage() {
 
   const visitType = visit.sittingNo === 1 && visit.stageNo === 1 ? "Initial" : "Follow-up"
   const practitioner = visit.plan?.doctor?.name || visit.scheduleSlot?.doctor?.name || "N/A"
-  const duration = visit.plan
+  const progress = visit.plan
     ? `Stage ${visit.plan.currentStage}/${visit.plan.stagesTotal}, Sitting ${visit.plan.currentSittingNumber}/${visit.plan.sittingsTotal}`
-    : "—"
+    : "No active treatment plan"
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -261,8 +261,8 @@ export default function ReceiptPage() {
                     <span className="font-medium">{visitType}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">{duration}</span>
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-medium">{progress}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
