@@ -5,11 +5,10 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -35,13 +34,10 @@ import {
   Clock,
   AlertTriangle,
   User,
-  X,
   Check,
   Plus,
   ChevronLeft,
   ChevronRight,
-  Phone,
-  MessageSquare,
   Search,
   SlidersHorizontal,
   Loader2,
@@ -68,15 +64,6 @@ type Appointment = {
   phone: string
   visitId?: string
   visitStatus?: string
-}
-
-type OnlineRequest = {
-  id: string
-  patientName: string
-  phone: string
-  reason: string
-  requestedDate: string
-  requestedTime: string
 }
 
 type PatientSearchResult = {
@@ -107,120 +94,6 @@ const STATUS_TEXT_COLORS: Record<string, string> = {
   completed: "text-muted-foreground",
   cancelled: "text-destructive",
 }
-
-const initialAppointments: Appointment[] = [
-  {
-    id: "1",
-    patientName: "Alice Johnson",
-    patientId: "p1",
-    time: "09:00",
-    endTime: "09:45",
-    date: "",
-    duration: 45,
-    status: "confirmed",
-    practitioner: "Dr. Smith",
-    room: "Room 1",
-    reason: "Follow-up - Lower back pain",
-    phone: "555-0101",
-  },
-  {
-    id: "2",
-    patientName: "Bob Martinez",
-    patientId: "p2",
-    time: "09:30",
-    endTime: "10:00",
-    date: "",
-    duration: 30,
-    status: "arrived",
-    practitioner: "Dr. Smith",
-    room: "Room 2",
-    reason: "Initial consultation - Migraines",
-    phone: "555-0102",
-  },
-  {
-    id: "3",
-    patientName: "Carol Chen",
-    patientId: "p3",
-    time: "10:00",
-    endTime: "11:00",
-    date: "",
-    duration: 60,
-    status: "confirmed",
-    practitioner: "Dr. Lee",
-    room: "Room 1",
-    reason: "Treatment - Neck stiffness",
-    phone: "555-0103",
-  },
-  {
-    id: "4",
-    patientName: "David Park",
-    patientId: "p4",
-    time: "11:00",
-    endTime: "11:30",
-    date: "",
-    duration: 30,
-    status: "overdue",
-    practitioner: "Dr. Smith",
-    room: "Room 3",
-    reason: "Follow-up - Knee pain",
-    phone: "555-0104",
-  },
-  {
-    id: "5",
-    patientName: "Elena Rodriguez",
-    patientId: "p5",
-    time: "13:00",
-    endTime: "14:00",
-    date: "",
-    duration: 60,
-    status: "confirmed",
-    practitioner: "Dr. Lee",
-    room: "Room 2",
-    reason: "Initial consultation - Anxiety",
-    phone: "555-0105",
-  },
-  {
-    id: "6",
-    patientName: "Frank Wilson",
-    patientId: "p6",
-    time: "14:00",
-    endTime: "14:30",
-    date: "",
-    duration: 30,
-    status: "blocked",
-    practitioner: "Dr. Smith",
-    room: "Room 1",
-    reason: "Blocked - Admin",
-    phone: "555-0106",
-  },
-]
-
-const initialOnlineRequests: OnlineRequest[] = [
-  {
-    id: "r1",
-    patientName: "Grace Kim",
-    phone: "555-0201",
-    reason: "Chronic shoulder pain",
-    requestedDate: "2026-05-27",
-    requestedTime: "10:00",
-  },
-  {
-    id: "r2",
-    patientName: "Henry Brown",
-    phone: "555-0202",
-    reason: "Sleep issues / Insomnia",
-    requestedDate: "2026-05-28",
-    requestedTime: "14:30",
-  },
-  {
-    id: "r3",
-    patientName: "Ivy Taylor",
-    phone: "555-0203",
-    reason: "Digestive issues",
-    requestedDate: "2026-05-27",
-    requestedTime: "11:00",
-  },
-]
 
 const rooms = ["Room 1", "Room 2", "Room 3", "Room 4"]
 
@@ -308,9 +181,8 @@ function isToday(date: Date): boolean {
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<"day" | "week" | "month">("week")
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loadingSlots, setLoadingSlots] = useState(true)
-  const [onlineRequests, setOnlineRequests] = useState<OnlineRequest[]>(initialOnlineRequests)
   const [practitionerFilter, setPractitionerFilter] = useState<string>("")
   const [roomFilter, setRoomFilter] = useState<string>("all")
   const [newApptOpen, setNewApptOpen] = useState(false)
@@ -382,9 +254,8 @@ export default function CalendarPage() {
             visitId: s.visit?.id,
             visitStatus: s.visit?.visitStatus,
           }))
-        if (mapped.length > 0) setAppointments(mapped)
+        setAppointments(mapped)
       } catch {
-        // fallback to initial mock data
       } finally {
         setLoadingSlots(false)
       }
@@ -519,16 +390,6 @@ export default function CalendarPage() {
     setNewApptOverrideReason("")
     setSearchResults([])
     setSelectedSlot(null)
-  }, [])
-
-  const handleAcceptRequest = useCallback((id: string) => {
-    setOnlineRequests((prev) => prev.filter((r) => r.id !== id))
-    toast.success("Request accepted - appointment created")
-  }, [])
-
-  const handleDeclineRequest = useCallback((id: string) => {
-    setOnlineRequests((prev) => prev.filter((r) => r.id !== id))
-    toast.success("Request declined")
   }, [])
 
   const handleArrivePatient = useCallback(async (slotId: string) => {
@@ -685,7 +546,12 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto relative">
+          {loadingSlots && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
           {view === "week" && (
             <div className="flex min-w-[600px]">
               <div className="w-14 shrink-0 border-r border-border">
@@ -971,65 +837,7 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-              <MessageSquare className="size-3.5" />
-              Online Requests
-            </CardTitle>
-            <Badge variant="secondary" className="text-xs">
-              {onlineRequests.length}
-            </Badge>
-          </CardHeader>
-          <CardContent className="p-3 space-y-3">
-            {onlineRequests.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                No pending requests
-              </p>
-            )}
-            {onlineRequests.map((req) => (
-              <div key={req.id} className="rounded-lg border border-border p-2.5 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{req.patientName}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Phone className="size-3" />
-                      {req.phone}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {req.reason}
-                </p>
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Calendar className="size-3" />
-                  {req.requestedDate}
-                  <Clock className="size-3 ml-1" />
-                  {req.requestedTime}
-                </div>
-                <div className="flex gap-1.5 pt-1">
-                  <Button
-                    size="sm"
-                    className="h-7 flex-1 text-xs gap-1"
-                    onClick={() => handleAcceptRequest(req.id)}
-                  >
-                    <Check className="size-3" />
-                    Accept
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 flex-1 text-xs gap-1"
-                    onClick={() => handleDeclineRequest(req.id)}
-                  >
-                    <X className="size-3" />
-                    Decline
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+
       </aside>
 
       <Dialog open={newApptOpen} onOpenChange={(open) => { if (!open) resetNewApptForm(); setNewApptOpen(open) }}>
