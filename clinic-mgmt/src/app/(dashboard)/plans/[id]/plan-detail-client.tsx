@@ -21,6 +21,7 @@ import { SessionTimeline } from "./session-timeline"
 type Plan = NonNullable<Awaited<ReturnType<typeof import("@/lib/actions").getTreatmentPlanById>>>
 
 export function PlanDetailClient({ plan }: { plan: Plan }) {
+  const completedSittings = plan.sessions.filter((s) => s.status === "completed").length
   const progressPct = plan.stagesTotal > 0
     ? Math.round((plan.currentStage / plan.stagesTotal) * 100)
     : 0
@@ -80,7 +81,7 @@ export function PlanDetailClient({ plan }: { plan: Plan }) {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Sittings</p>
               <p className="text-2xl font-bold mt-1">
-                {plan.currentSittingNumber} of {plan.sittingsTotal}
+                {completedSittings} of {plan.sittingsTotal}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Every {plan.intervalDays} days

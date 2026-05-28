@@ -332,18 +332,26 @@ export async function getTreatmentPlans(params: {
 
 export async function getTreatmentPlanById(id: string) {
   await requireAuth()
-  return withCache(`plan:${id}`, 30_000, () =>
-    prisma.treatmentPlan.findUnique({
-      where: { id },
-      include: {
-        patient: { select: { id: true, name: true, phone: true } },
-        doctor: { select: { name: true } },
-        versions: { orderBy: { version: "desc" } },
-        visits: { orderBy: { dateTime: "desc" }, take: 20 },
-        sessions: { orderBy: { sessionNumber: "asc" } },
-      },
-    })
-  )
+  const plan = await prisma.treatmentPlan.findUnique({
+    where: { id },
+    include: {
+      patient: { select: { id: true, name: true, phone: true } },
+      doctor: { select: { name: true } },
+      versions: { orderBy: { version: "desc" } },
+      visits: { orderBy: { dateTime: "desc" }, take: 20 },
+      sessions: { orderBy: { sessionNumber: "asc" } },
+    },
+  })
+  if (!plan) return null
+
+  if (plan.visits.length === 0) {
+    plan.visits = await prisma.visit.findMany({
+      where: { patientId: plan.patientId },
+      orderBy: { dateTime: "desc" },
+      take: 20,
+    }) as any
+  }
+  return plan
 }
 
 export type CreateTreatmentPlanResult = {
@@ -838,10 +846,18 @@ export async function completeVisit(visitId: string, notes?: string | null) {
       })
     }
 
-    if (visit.plan) {
-      const sessionToUpdate = visit.plan.sessions.find(
-        (s) => s.stageNo === visit.stageNo && s.sittingNo === visit.sittingNo && s.status === "scheduled"
-      )
+    let planId = visit.plan?.id
+    if (!planId && visit.scheduleSlot?.overrideReason?.startsWith("plan-session:")) {
+      planId = visit.scheduleSlot.overrideReason.split(":")[1]
+      await prisma.visit.update({
+        where: { id: visitId },
+        data: { planId },
+      })
+    }
+    if (planId) {
+      const sessionToUpdate = await prisma.planSession.findFirst({
+        where: { planId, stageNo: visit.stageNo, sittingNo: visit.sittingNo, status: "scheduled" },
+      })
       if (sessionToUpdate) {
         await prisma.planSession.update({
           where: { id: sessionToUpdate.id },
@@ -850,17 +866,20 @@ export async function completeVisit(visitId: string, notes?: string | null) {
       }
 
       const completedCount = await prisma.planSession.count({
-        where: { planId: visit.plan.id, status: "completed" },
+        where: { planId, status: "completed" },
       })
-      const nextStage = completedCount > visit.plan.sittingsTotal && visit.plan.currentStage < visit.plan.stagesTotal
-        ? visit.plan.currentStage + 1 : visit.plan.currentStage
-      await prisma.treatmentPlan.update({
-        where: { id: visit.plan.id },
-        data: {
-          currentSittingNumber: completedCount,
-          currentStage: nextStage,
-        },
+      const plan = await prisma.treatmentPlan.findUnique({
+        where: { id: planId },
+        select: { currentStage: true, sittingsTotal: true, stagesTotal: true },
       })
+      if (plan) {
+        const nextStage = completedCount > plan.sittingsTotal && plan.currentStage < plan.stagesTotal
+          ? plan.currentStage + 1 : plan.currentStage
+        await prisma.treatmentPlan.update({
+          where: { id: planId },
+          data: { currentSittingNumber: completedCount, currentStage: nextStage },
+        })
+      }
     }
 
     logAudit({
